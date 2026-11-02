@@ -20,6 +20,9 @@ def run(command):
 
 def update_echo():
     print("ECHO: Checking for updates...")
+    print("This legacy updater does not verify Telegram approval.")
+    print("Use echo_telegram_approved_updater.py instead.")
+    return
 
     if not os.path.isdir(
         os.path.join(ECHO_FOLDER, ".git")
