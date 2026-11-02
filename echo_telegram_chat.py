@@ -86,6 +86,7 @@ def main():
     if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
         raise SystemExit("Set numeric ECHO_TELEGRAM_CHAT_ID before starting (private chat only).")
     print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
+    print("IMPORTANT: Stop the separate Telegram updater before starting this bridge; both poll getUpdates and cannot run together reliably.", flush=True)
     updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
     offset = max((u["update_id"] for u in updates), default=-1) + 1
     while True:
@@ -98,8 +99,7 @@ def main():
                     continue
                 text = msg.get("text", "").strip()
                 if text.startswith(("APPROVE ", "REJECT ")):
-                    # Updater owns update approval messages; never consume them here.
-                    send(CHAT_ID, "Update approvals are handled by the updater process.")
+                    send(CHAT_ID, "Update approvals require the dedicated updater. Stop this chat bridge and start the updater to approve an update.")
                     continue
                 try:
                     if msg.get("voice"):
