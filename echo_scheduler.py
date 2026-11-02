@@ -10,6 +10,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from echo_tasks import create_task, load_tasks
+from echo_telegram import send_report, send_alert
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -169,6 +170,7 @@ def run_daily_schedule():
             save_schedule(schedule)
             print("Echo report " + report_time + ":")
             print(json.dumps(report, indent=4))
+            send_report(report)
 
 
 # ==========================================
@@ -186,6 +188,7 @@ if __name__ == "__main__":
             run_daily_schedule()
         except Exception as error:
             print("Scheduler error:", error)
+            send_alert("Scheduler error: " + str(error))
 
         time.sleep(60)
       
