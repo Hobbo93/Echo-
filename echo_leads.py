@@ -176,7 +176,10 @@ def research_leads():
 
 
 if __name__ == "__main__":
-    result = research_leads()
+    try:
+        result = research_leads()
+    except RuntimeError as error:
+        raise SystemExit(str(error))
     print(f"Researched {result['researched']} businesses. Top {TOP_LEADS}:")
     for number, lead in enumerate(result["top_leads"], 1):
         print(f"{number}. {lead['name']} (score {lead['score']}) - "
