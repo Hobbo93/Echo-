@@ -10,6 +10,7 @@ import tempfile
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 
@@ -24,8 +25,16 @@ IGNORED = {".git", ".env", "venv", ".venv", "__pycache__", "node_modules"}
 def telegram(method, params):
     url = "https://api.telegram.org/bot" + TOKEN + "/" + method
     body = urllib.parse.urlencode(params).encode()
-    with urllib.request.urlopen(url, data=body, timeout=40) as response:
-        data = json.load(response)
+    try:
+        with urllib.request.urlopen(url, data=body, timeout=40) as response:
+            data = json.load(response)
+    except urllib.error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")
+        try:
+            description = json.loads(details).get("description", "Unknown Telegram error")
+        except ValueError:
+            description = "Unknown Telegram error"
+        raise RuntimeError(f"Telegram {method}: HTTP {exc.code}: {description}") from None
     if not data.get("ok"):
         raise RuntimeError("Telegram request failed")
     return data["result"]
@@ -103,8 +112,18 @@ def install(repo, commit):
     return len(changes), backup
 
 def main():
-    if not TOKEN or not CHAT_ID:
-        raise SystemExit("Set ECHO_TELEGRAM_TOKEN and ECHO_TELEGRAM_CHAT_ID first.")
+    global CHAT_ID
+    if not TOKEN:
+        raise SystemExit("Set ECHO_TELEGRAM_TOKEN first.")
+    if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
+        updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
+        chats = {str(u["message"]["chat"]["id"]) for u in updates
+                 if u.get("message", {}).get("chat", {}).get("type") == "private"
+                 and u.get("message", {}).get("text", "").strip().startswith("/start")}
+        if len(chats) != 1:
+            raise SystemExit("Send /start to your Echo bot, then set ECHO_TELEGRAM_CHAT_ID to the correct numeric chat ID.")
+        CHAT_ID = chats.pop()
+        print("Found your Telegram private chat ID from /start.", flush=True)
     if not ROOT.exists():
         raise SystemExit("Echo project folder missing.")
     temp, repo, commit = snapshot()
@@ -118,9 +137,13 @@ def main():
     if state.get("repo") != REPO_URL:
         state = {"repo": REPO_URL, "baseline": commit}
         STATE_FILE.write_text(json.dumps(state), encoding="utf-8")
+    try:
+        notify("Echo updater connected. Approval required before any GitHub update.")
+    except RuntimeError as exc:
+        raise SystemExit(str(exc) + " Check your Telegram chat ID.") from None
     old_updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
     offset = max((u["update_id"] for u in old_updates), default=0) + 1
-    notify("Echo approved updater connected to Hobbo93/Echo-. Monitoring main every 10 minutes. No changes without approval.")
+
     print("Echo approved updater running:", ROOT, flush=True)
     while True:
         temp = None
