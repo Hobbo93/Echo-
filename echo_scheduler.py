@@ -9,10 +9,7 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-try:
-    from echo_tasks import create_task, load_tasks
-except ImportError:
-    from echo_task import create_task, load_tasks
+from echo_tasks import create_task, load_tasks
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
