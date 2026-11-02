@@ -1,4 +1,4 @@
-"""Echo Telegram chat bridge (stdlib). Text messages use local Ollama.
+"""Echo Telegram chat bridge (stdlib). Uses a separate Telegram bot from the updater. Text messages use local Ollama.
 Voice messages require an optional local speech-to-text engine (whisper CLI);
 voice replies require optional local text-to-speech (Piper). No paid API required.
 Telegram bots exchange voice notes, not live Telegram voice calls.
@@ -13,8 +13,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-TOKEN = os.getenv("ECHO_TELEGRAM_TOKEN", "").strip()
-CHAT_ID = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
+TOKEN = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
+CHAT_ID = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 PIPER_MODEL = os.getenv("ECHO_PIPER_MODEL", "").strip()
@@ -82,11 +82,13 @@ def send_voice(chat_id, text):
 
 def main():
     if not TOKEN:
-        raise SystemExit("Set ECHO_TELEGRAM_TOKEN privately before starting.")
+        raise SystemExit("Create a separate Telegram chat bot via BotFather and set ECHO_CHAT_TELEGRAM_TOKEN privately. The updater must use a different bot.")
     if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
-        raise SystemExit("Set numeric ECHO_TELEGRAM_CHAT_ID before starting (private chat only).")
+        raise SystemExit("Set numeric ECHO_CHAT_TELEGRAM_CHAT_ID before starting (private chat only).")
     print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
-    print("IMPORTANT: Stop the separate Telegram updater before starting this bridge; both poll getUpdates and cannot run together reliably.", flush=True)
+    if TOKEN == os.getenv("ECHO_TELEGRAM_TOKEN", "").strip():
+        raise SystemExit("Chat and updater cannot share a Telegram bot token. Create a separate chat bot.")
+    print("Echo chat uses a separate Telegram bot to avoid updater polling conflicts.", flush=True)
     updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
     offset = max((u["update_id"] for u in updates), default=-1) + 1
     while True:
