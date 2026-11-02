@@ -7,6 +7,7 @@ import json
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from echo_tasks import create_task, load_tasks
@@ -14,7 +15,13 @@ from echo_telegram import send_report, send_alert
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
-SCHEDULE_FILE = "echo_schedule.json"
+# Files live next to this script so Echo works from any starting folder.
+ROOT = Path(__file__).resolve().parent
+SCHEDULE_FILE = ROOT / "echo_schedule.json"
+
+# The same error is sent to Telegram at most once per hour.
+ALERT_COOLDOWN_SECONDS = 3600
+_last_alerts = {}
 
 DAILY_TARGETS = {
     "businesses_to_research": 20,
@@ -37,13 +44,20 @@ def load_schedule():
     if not os.path.exists(SCHEDULE_FILE):
         return {}
 
-    with open(SCHEDULE_FILE, "r") as file:
-        return json.load(file)
+    try:
+        with open(SCHEDULE_FILE, "r") as file:
+            data = json.load(file)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        # A damaged schedule file should not stop the scheduler.
+        return {}
 
 
 def save_schedule(schedule):
-    with open(SCHEDULE_FILE, "w") as file:
+    temp = SCHEDULE_FILE.with_suffix(".tmp")
+    with open(temp, "w") as file:
         json.dump(schedule, file, indent=4)
+    os.replace(temp, SCHEDULE_FILE)
 
 
 def task_exists(description):
@@ -110,7 +124,7 @@ def schedule_leads():
 # DAILY REPORT
 # ==========================================
 
-def generate_report():
+def generate_report(report_time=None):
     date = today()
     tasks = load_tasks()
 
@@ -119,24 +133,30 @@ def generate_report():
         if task["description"].startswith(date)
     ]
 
+    def count(status):
+        return sum(task["status"] == status for task in todays_tasks)
+
     report = {
         "date": date,
+        "report_time": report_time,
         "timezone": "Australia/Adelaide",
-        "business_research_target": 20,
-        "top_leads_target": 5,
-        "ai_video_target": 50,
-        "edited_clip_target": 50,
+        "business_research_target": DAILY_TARGETS["businesses_to_research"],
+        "top_leads_target": DAILY_TARGETS["top_leads"],
+        "ai_video_target": DAILY_TARGETS["ai_generated_videos"],
+        "edited_clip_target": DAILY_TARGETS["edited_video_clips"],
         "queued_tasks": len(todays_tasks),
-        "completed_research": 0,
-        "completed_videos": 0,
+        "pending_approval": count("waiting_for_approval"),
+        "approved": count("approved"),
+        "rejected": count("rejected"),
         "note": (
             "This is a scheduling report only. "
             "Research and video generation tools "
-            "are not connected yet."
+            "are not connected yet, so no work "
+            "has been completed automatically."
         )
     }
 
-    filename = f"echo_report_{date}.json"
+    filename = ROOT / f"echo_report_{date}.json"
 
     with open(filename, "w") as file:
         json.dump(report, file, indent=4)
@@ -161,16 +181,38 @@ def run_daily_schedule():
 
         print("Echo daily tasks queued.")
 
-    now = current_time()
+    now = current_time().strftime("%H:%M")
 
-    for report_time in DAILY_TARGETS["report_times"]:
-        if now.strftime("%H:%M") >= report_time and schedule.get("last_report_" + report_time) != date:
-            report = generate_report()
-            schedule["last_report_" + report_time] = date
-            save_schedule(schedule)
-            print("Echo report " + report_time + ":")
-            print(json.dumps(report, indent=4))
-            send_report(report)
+    due = [
+        report_time for report_time in DAILY_TARGETS["report_times"]
+        if now >= report_time
+        and schedule.get("last_report_" + report_time) != date
+    ]
+
+    if not due:
+        return
+
+    # If Echo starts late (e.g. PC switched on at 6 PM), send only the
+    # latest report instead of every missed one at once.
+    for report_time in due:
+        schedule["last_report_" + report_time] = date
+    save_schedule(schedule)
+
+    latest = due[-1]
+    report = generate_report(latest)
+    print("Echo report " + latest + ":")
+    print(json.dumps(report, indent=4))
+    send_report(report)
+
+
+def alert_once(message):
+    """Send an alert, but not the same one more than once per hour."""
+    now = time.monotonic()
+    last = _last_alerts.get(message)
+    if last is not None and now - last < ALERT_COOLDOWN_SECONDS:
+        return False
+    _last_alerts[message] = now
+    return send_alert(message)
 
 
 # ==========================================
@@ -188,7 +230,7 @@ if __name__ == "__main__":
             run_daily_schedule()
         except Exception as error:
             print("Scheduler error:", error)
-            send_alert("Scheduler error: " + str(error))
+            alert_once("Scheduler error: " + str(error))
 
         time.sleep(60)
       

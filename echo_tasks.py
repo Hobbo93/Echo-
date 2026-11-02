@@ -3,9 +3,11 @@
 import json
 import os
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 
-TASK_FILE = "echo_tasks.json"
+# Stored next to this file so Echo works from any starting folder.
+TASK_FILE = Path(__file__).with_name("echo_tasks.json")
 
 EMPLOYEE_ROLES = {
     "employee_1": "Content Creator",
@@ -24,8 +26,11 @@ def load_tasks():
 
 
 def save_tasks(tasks):
-    with open(TASK_FILE, "w") as file:
+    # Write to a temp file first so a crash cannot leave half-written tasks.
+    temp = TASK_FILE.with_suffix(".tmp")
+    with open(temp, "w") as file:
         json.dump(tasks, file, indent=4)
+    os.replace(temp, TASK_FILE)
 
 
 def create_task(employee_id, description):

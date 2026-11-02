@@ -5,12 +5,14 @@ import ast
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_scheduler.py", "echo_telegram_approved_updater.py",
-           "echo_telegram_chat.py", "echo_updater.py"]
+           "echo_telegram_chat.py", "echo_updater.py", "echo_telegram.py",
+           "echo_tasks.py", "echo_content.py", "echo_automation.py"]
 def check():
     results = []
     for filename in MODULES:
@@ -26,10 +28,21 @@ def check():
     for name in ("flask",):
         results.append({"check": "dependency:" + name,
                         "status": "ok" if importlib.util.find_spec(name) else "missing"})
+    # Notifications accept env vars or ~/.echo_telegram.json (see TELEGRAM_SETUP.md).
+    # The approval updater only reads env vars, so it is checked separately.
+    try:
+        from echo_telegram import is_configured
+        notify_ok = is_configured()
+    except Exception:
+        notify_ok = False
+    results.append({"check": "telegram_notifications",
+                    "status": "configured" if notify_ok else "missing"})
     results.append({"check": "telegram_token", "status": "configured" if os.getenv("ECHO_TELEGRAM_TOKEN") else "missing"})
     chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
     results.append({"check": "telegram_chat_id",
                     "status": "configured" if chat.lstrip("-").isdigit() else "missing_or_invalid"})
+    results.append({"check": "ffmpeg", "status": "ok" if shutil.which("ffmpeg") and shutil.which("ffprobe") else "missing",
+                    "detail": "Only needed for echo_content.py video clips."})
     updater_token = os.getenv("ECHO_TELEGRAM_TOKEN", "").strip()
     chat_token = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
     chat_id = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()

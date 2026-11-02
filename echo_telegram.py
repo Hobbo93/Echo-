@@ -7,17 +7,36 @@ from pathlib import Path
 
 CONFIG = Path.home() / ".echo_telegram.json"
 
+REPORT_LABELS = [
+    ("queued_tasks", "Tasks queued today"),
+    ("pending_approval", "Waiting for approval"),
+    ("approved", "Approved"),
+    ("rejected", "Rejected"),
+    ("business_research_target", "Business research target"),
+    ("top_leads_target", "Top leads target"),
+    ("ai_video_target", "AI video target"),
+    ("edited_clip_target", "Edited clip target"),
+]
+
+
 def _credentials():
-    token = os.getenv("ECHO_TELEGRAM_TOKEN", "")
-    chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "")
+    token = os.getenv("ECHO_TELEGRAM_TOKEN", "").strip()
+    chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
     if CONFIG.is_file():
         try:
             data = json.loads(CONFIG.read_text(encoding="utf-8"))
-            token = token or str(data.get("bot_token", ""))
-            chat = chat or str(data.get("chat_id", ""))
-        except (OSError, ValueError):
+            token = token or str(data.get("bot_token", "")).strip()
+            chat = chat or str(data.get("chat_id", "")).strip()
+        except (OSError, ValueError, AttributeError):
             pass
     return token, chat
+
+
+def is_configured():
+    """True when a token and numeric chat ID are available. Sends nothing."""
+    token, chat = _credentials()
+    return bool(token) and chat.lstrip("-").isdigit()
+
 
 def send_message(message):
     token, chat = _credentials()
@@ -31,19 +50,37 @@ def send_message(message):
     try:
         with urllib.request.urlopen(req, timeout=15) as response:
             return bool(json.load(response).get("ok"))
-    except (urllib.error.URLError, ValueError) as exc:
+    except (OSError, ValueError) as exc:  # URLError, HTTPError and timeouts are OSErrors
         print("Telegram delivery failed:", type(exc).__name__)
         return False
 
+
+def format_report(report):
+    """Turn a scheduler report into a short, phone-friendly message."""
+    title = "ECHO REPORT"
+    if report.get("report_time"):
+        title += " " + report["report_time"]
+    lines = [title + " - " + str(report.get("date", "")), ""]
+    for key, label in REPORT_LABELS:
+        if key in report:
+            lines.append(label + ": " + str(report[key]))
+    if report.get("note"):
+        lines += ["", report["note"]]
+    return "\n".join(lines)
+
+
 def send_report(report):
-    return send_message("ECHO DAILY REPORT\n\n" + json.dumps(report, indent=2))
+    return send_message(format_report(report))
+
 
 def send_alert(problem):
     return send_message("ECHO ALERT\n\n" + str(problem))
 
+
 def request_approval(task):
     return send_message("ECHO APPROVAL REQUEST\n\n" + str(task) +
         "\n\nThis is a notification only. Approve or reject in Echo's existing approval system.")
+
 
 if __name__ == "__main__":
     send_message("Echo Telegram notifications are connected.")
