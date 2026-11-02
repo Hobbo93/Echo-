@@ -24,7 +24,7 @@ def _credentials():
     chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
     if CONFIG.is_file():
         try:
-            data = json.loads(CONFIG.read_text(encoding="utf-8"))
+            data = json.loads(CONFIG.read_text(encoding="utf-8-sig"))
             token = token or str(data.get("bot_token", "")).strip()
             chat = chat or str(data.get("chat_id", "")).strip()
         except (OSError, ValueError, AttributeError):

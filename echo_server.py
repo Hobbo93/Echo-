@@ -21,6 +21,30 @@ from echo_employees import (
 
 app = Flask(__name__)
 
+# Office.html is opened straight from disk (origin "null") or from localhost.
+# Only these origins may call the server, and only health + chat;
+# approvals stay off-limits to the browser page.
+ALLOWED_ORIGINS = {
+    "null",
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+}
+BROWSER_PATHS = {"/health", "/api/chat"}
+
+
+@app.after_request
+def allow_office_page(response):
+    origin = request.headers.get("Origin", "")
+    if request.path in BROWSER_PATHS and (
+        origin in ALLOWED_ORIGINS
+        or origin.startswith(("http://127.0.0.1:", "http://localhost:"))
+    ):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Vary"] = "Origin"
+    return response
+
 OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
 DEFAULT_MODEL = "llama3.2"
 
@@ -141,8 +165,11 @@ def employee_details(employee_id):
 # AI CHAT
 # ==========================================
 
-@app.route("/api/chat", methods=["POST"])
+@app.route("/api/chat", methods=["POST", "OPTIONS"])
 def chat():
+
+    if request.method == "OPTIONS":
+        return ("", 204)
 
     data = request.get_json(silent=True) or {}
 
@@ -167,7 +194,7 @@ def chat():
     # Support the existing 3D office interface,
     # which sends an employee name and role.
 
-    if not employee_id and isinstance(
+    if employee_id not in EMPLOYEES and isinstance(
         employee_data, dict
     ):
         selected_name = employee_data.get(
@@ -180,7 +207,7 @@ def chat():
                 employee_id = key
                 break
 
-    if not employee_id:
+    if employee_id not in EMPLOYEES:
         employee_id = "employee_1"
 
     employee = EMPLOYEES.get(employee_id)

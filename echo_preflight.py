@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parent
 MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_scheduler.py", "echo_telegram_approved_updater.py",
            "echo_telegram_chat.py", "echo_updater.py", "echo_telegram.py",
-           "echo_tasks.py", "echo_content.py", "echo_automation.py"]
+           "echo_content.py", "echo_automation.py",
+           "echo_leads.py", "echo_memory.py", "echo_approvals.py"]
 def check():
     results = []
     for filename in MODULES:
@@ -27,7 +28,19 @@ def check():
             results.append({"check": filename, "status": "error", "detail": str(exc)})
     for name in ("flask",):
         results.append({"check": "dependency:" + name,
-                        "status": "ok" if importlib.util.find_spec(name) else "missing"})
+                        "status": "ok" if importlib.util.find_spec(name) else "missing",
+                        "detail": "Install with: py -m pip install -r requirements.txt"})
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo("Australia/Adelaide")
+        results.append({"check": "timezone_data", "status": "ok"})
+    except Exception:
+        # Windows has no built-in timezone data; Echo needs the tzdata package.
+        results.append({"check": "timezone_data", "status": "error",
+                        "detail": "Install with: py -m pip install -r requirements.txt"})
+    results.append({"check": "google_places_key",
+                    "status": "configured" if os.getenv("GOOGLE_PLACES_API_KEY") else "missing",
+                    "detail": "Only needed for echo_leads.py business research."})
     # Notifications accept env vars or ~/.echo_telegram.json (see TELEGRAM_SETUP.md).
     # The approval updater only reads env vars, so it is checked separately.
     try:

@@ -685,6 +685,7 @@ headers:{
 },
 body:JSON.stringify({
 message:prompt,
+employee_id:"employee_"+employee.id,
 employee:{
 name:employee.name,
 role:employee.role,
@@ -696,10 +697,10 @@ signal:AbortSignal.timeout(120000)
 }
 );
 
-if(!response.ok)
-throw Error("HTTP "+response.status);
+const data=await response.json().catch(()=>({}));
 
-const data=await response.json();
+if(!response.ok)
+throw Error(data.error||("HTTP "+response.status));
 
 addMessage(
 data.reply||data.response||
