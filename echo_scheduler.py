@@ -9,18 +9,21 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from echo_tasks import create_task, load_tasks
+try:
+    from echo_tasks import create_task, load_tasks
+except ImportError:
+    from echo_task import create_task, load_tasks
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
 SCHEDULE_FILE = "echo_schedule.json"
 
 DAILY_TARGETS = {
-    "businesses_to_research": 100,
-    "top_leads": 10,
+    "businesses_to_research": 20,
+    "top_leads": 5,
     "ai_generated_videos": 50,
     "edited_video_clips": 50,
-    "report_time": "19:00"
+    "report_times": ["06:30", "13:00", "17:30"]
 }
 
 
@@ -96,10 +99,10 @@ def schedule_leads():
 
     queue_task(
         "employee_4",
-        f"{date}: Research up to 100 businesses "
+        f"{date}: Research up to 20 businesses "
         "that may need websites or AI receptionists. "
         "Verify their public business information. "
-        "Rank the best 10 opportunities. "
+        "Rank the best 5 opportunities. "
         "Do not build demos or contact businesses "
         "without approval."
     )
@@ -121,8 +124,8 @@ def generate_report():
     report = {
         "date": date,
         "timezone": "Australia/Adelaide",
-        "business_research_target": 100,
-        "top_leads_target": 10,
+        "business_research_target": 20,
+        "top_leads_target": 5,
         "ai_video_target": 50,
         "edited_clip_target": 50,
         "queued_tasks": len(todays_tasks),
@@ -162,17 +165,13 @@ def run_daily_schedule():
 
     now = current_time()
 
-    if (
-        now.hour >= 19
-        and schedule.get("last_report") != date
-    ):
-        report = generate_report()
-
-        schedule["last_report"] = date
-        save_schedule(schedule)
-
-        print("Echo 7 PM report:")
-        print(json.dumps(report, indent=4))
+    for report_time in DAILY_TARGETS["report_times"]:
+        if now.strftime("%H:%M") >= report_time and schedule.get("last_report_" + report_time) != date:
+            report = generate_report()
+            schedule["last_report_" + report_time] = date
+            save_schedule(schedule)
+            print("Echo report " + report_time + ":")
+            print(json.dumps(report, indent=4))
 
 
 # ==========================================
@@ -182,7 +181,7 @@ def run_daily_schedule():
 if __name__ == "__main__":
     print("ECHO AI SCHEDULER STARTED")
     print("Timezone: Australia/Adelaide")
-    print("Daily report: 7 PM")
+    print("Reports: 6:30 AM, 1 PM, 5:30 PM")
     print("Approval required for all actions")
 
     while True:
