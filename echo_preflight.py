@@ -30,8 +30,14 @@ def check():
     chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
     results.append({"check": "telegram_chat_id",
                     "status": "configured" if chat.lstrip("-").isdigit() else "missing_or_invalid"})
-    results.append({"check": "telegram_polling_conflict", "status": "warning",
-                    "detail": "Do not run echo_telegram_chat.py and echo_telegram_approved_updater.py simultaneously: both use getUpdates."})
+    updater_token = os.getenv("ECHO_TELEGRAM_TOKEN", "").strip()
+    chat_token = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
+    chat_id = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()
+    results.append({"check": "chat_bot_token", "status": "configured" if chat_token else "missing"})
+    results.append({"check": "chat_bot_chat_id", "status": "configured" if chat_id.lstrip("-").isdigit() else "missing_or_invalid"})
+    results.append({"check": "telegram_polling_conflict",
+                    "status": "error" if updater_token and chat_token and updater_token == chat_token else "ok",
+                    "detail": "Chat and updater must use different Telegram bot tokens."})
     return results
 
 if __name__ == "__main__":
