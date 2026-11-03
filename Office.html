@@ -35,6 +35,8 @@ cursor:pointer;
 margin:3px;
 }
 button:hover{background:#249ac4}
+#callButton{background:#1f9d55}
+#callButton.oncall{background:#c0392b}
 input,textarea,select{
 width:100%;
 padding:10px;
@@ -131,6 +133,20 @@ placeholder="Give an employee a task">
 Send Message
 </button>
 
+<button id="callButton" onclick="toggleCall()">
+📞 Call Echo
+</button>
+
+<button id="interruptButton" onclick="interruptEcho()" style="display:none">
+✋ Interrupt
+</button>
+
+<button onclick="ringMyPhone()">
+📱 Ring my phone
+</button>
+
+<p id="callStatus" class="small"></p>
+
 <h3>Server Connection</h3>
 
 <input
@@ -193,15 +209,38 @@ Remove Room
 
 <script type="module">
 
-import * as THREE from
-"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js";
+// The 3D view needs internet for three.js. If it can't load,
+// the office still works as a chat page.
+let THREE=null;
+try{
+THREE=await import(
+"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js"
+);
+}catch{
+document.getElementById("scene").insertAdjacentHTML("afterbegin",
+'<p class="small" style="padding:20px;position:absolute">3D view unavailable '+
+'(no internet). Chat still works.</p>');
+}
 
 const STORAGE="echo_office_v1";
 
-const defaults=Array.from({length:8},(_,i)=>({
+// Matches the employees built into echo_server.py.
+// Leave instructions empty to use the server's built-in instructions.
+const staff=[
+["Content Creator","Video Editing & Social Media Manager"],
+["Trading Analyst","Market Research and Trading Analysis"],
+["Shopify Manager","Online Store Management"],
+["Website and Leads Manager","Adelaide Business Research"],
+["Research Assistant","General Research"],
+["Technical Support","Echo Diagnostics and Maintenance"],
+["Communications Assistant","Calls, Emails and Notifications"],
+["Office Coordinator","Employee Coordination and Reporting"]
+];
+
+const defaults=staff.map(([name,role],i)=>({
 id:i+1,
-name:"Employee "+(i+1),
-role:"Unassigned",
+name,
+role,
 model:"llama3.2",
 instructions:""
 }));
@@ -216,6 +255,16 @@ rooms=Array.isArray(saved)&&saved.length
 rooms=defaults;
 }
 
+// Rooms never edited from the old placeholder names get the real staff.
+rooms=rooms.map(r=>{
+const d=defaults[r.id-1];
+return d&&r.name==="Employee "+r.id&&r.role==="Unassigned"
+&&!r.instructions?{...d,model:r.model||d.model}:r;
+});
+
+// Chat history per room, kept while the page is open.
+const histories={};
+
 let selected=0;
 
 const $=id=>document.getElementById(id);
@@ -224,14 +273,17 @@ const save=()=>localStorage.setItem(
 STORAGE,JSON.stringify(rooms)
 );
 
-const scene=new THREE.Scene();
+let scene,camera,renderer,brain,core;
+
+if(THREE){
+scene=new THREE.Scene();
 scene.background=new THREE.Color(0x0b1428);
 
-const camera=new THREE.PerspectiveCamera(
+camera=new THREE.PerspectiveCamera(
 45,1,.1,1000
 );
 
-const renderer=new THREE.WebGLRenderer({
+renderer=new THREE.WebGLRenderer({
 canvas:$("office"),
 antialias:true
 });
@@ -263,7 +315,7 @@ const grid=new THREE.GridHelper(
 grid.position.y=-.08;
 scene.add(grid);
 
-const brain=new THREE.Mesh(
+brain=new THREE.Mesh(
 new THREE.IcosahedronGeometry(2,3),
 new THREE.MeshStandardMaterial({
 color:0x49dfff,
@@ -276,7 +328,7 @@ wireframe:true
 brain.position.y=3;
 scene.add(brain);
 
-const core=new THREE.Mesh(
+core=new THREE.Mesh(
 new THREE.SphereGeometry(1.3,32,32),
 new THREE.MeshStandardMaterial({
 color:0x66ddff,
@@ -289,6 +341,8 @@ opacity:.65
 
 core.position.y=3;
 scene.add(core);
+
+}
 
 const roomObjects=[];
 
@@ -371,10 +425,12 @@ roomObjects.push({group,x,z});
 
 function rebuild(){
 
+if(THREE){
 roomObjects.forEach(o=>scene.remove(o.group));
 roomObjects.length=0;
 
 rooms.forEach((_,i)=>createRoom(i,rooms.length));
+}
 
 refresh();
 }
@@ -444,6 +500,8 @@ r.name=$("employeeName").value.trim()
 r.role=$("employeeRole").value.trim()
 ||"Unassigned";
 
+delete histories[r.id];
+
 r.model=$("employeeModel").value.trim()
 ||"llama3.2";
 
@@ -491,6 +549,8 @@ selectRoom(0);
 
 function resize(){
 
+if(!THREE)return;
+
 const el=$("scene");
 
 const w=el.clientWidth;
@@ -513,6 +573,8 @@ let lastX=0;
 let lastY=0;
 
 function updateCamera(){
+
+if(!THREE)return;
 
 camera.position.set(
 Math.sin(orbit)*Math.cos(elevation)*distance,
@@ -659,13 +721,8 @@ addMessage(
 }
 };
 
-window.sendMessage=async function(){
-
-const prompt=$("prompt").value.trim();
-
-if(!prompt)return;
-
-$("prompt").value="";
+// Ask the selected employee. Returns the reply, or throws.
+async function askEmployee(prompt,voice=false){
 
 const employee=rooms[selected];
 
@@ -673,6 +730,11 @@ addMessage(
 "To "+employee.name+": "+prompt,
 true
 );
+
+const history=histories[employee.id]||(histories[employee.id]=[]);
+
+addMessage(employee.name+" is thinking…");
+const thinking=$("messages").lastChild;
 
 try{
 
@@ -685,6 +747,8 @@ headers:{
 },
 body:JSON.stringify({
 message:prompt,
+voice,
+history:history.slice(-16),
 employee_id:"employee_"+employee.id,
 employee:{
 name:employee.name,
@@ -702,30 +766,228 @@ const data=await response.json().catch(()=>({}));
 if(!response.ok)
 throw Error(data.error||("HTTP "+response.status));
 
-addMessage(
-data.reply||data.response||
-"No response received."
+const reply=data.reply||data.response||
+"No response received.";
+
+addMessage(employee.name+": "+reply);
+
+history.push(
+{role:"user",content:prompt},
+{role:"assistant",content:reply}
 );
+history.splice(0,Math.max(0,history.length-16));
 
+return reply;
+
+}finally{
+thinking.remove();
+}
+}
+
+window.sendMessage=async function(){
+
+const prompt=$("prompt").value.trim();
+
+if(!prompt)return;
+
+$("prompt").value="";
+
+try{
+await askEmployee(prompt);
 }catch(error){
-
 addMessage(
 "Echo is not connected yet. "+
 "Start the Python backend and Ollama. "+
 error.message
 );
-
 }
 };
+
+// ==========================================
+// CALL ECHO: hands-free voice conversation
+// ==========================================
+
+const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+const call={active:false,state:"idle",recognizer:null};
+
+function setCallState(state,text){
+call.state=state;
+$("callStatus").textContent=text;
+$("callButton").textContent=call.active?"📞 Hang up":"📞 Call Echo";
+$("callButton").classList.toggle("oncall",call.active);
+$("interruptButton").style.display=
+call.active&&state==="speaking"?"inline-block":"none";
+}
+
+// Pick the most natural English voice available (Edge/Chrome online
+// voices sound best), preferring an Australian accent.
+function pickVoice(){
+const voices=speechSynthesis.getVoices()
+.filter(v=>v.lang.toLowerCase().startsWith("en"));
+const score=v=>
+(/natural|online|neural/i.test(v.name)?4:0)+
+(/en-au/i.test(v.lang)?2:0)+
+(/google/i.test(v.name)?1:0);
+return voices.sort((a,b)=>score(b)-score(a))[0]||null;
+}
+
+function speakable(text){
+return text
+.replace(/```[\s\S]*?```/g," ")
+.replace(/\[([^\]]+)\]\([^)]*\)/g,"$1")
+.replace(/[*_#`>|~]/g,"")
+.replace(/^\s*[-•]\s+/gm,"")
+.replace(/\s+/g," ")
+.trim();
+}
+
+// Speak sentence by sentence: Chrome cuts off long single utterances.
+function speak(text){
+return new Promise(resolve=>{
+speechSynthesis.cancel();
+call.doneSpeaking=resolve;
+const parts=speakable(text).match(/[^.!?]+[.!?]*/g)||[""];
+const voice=pickVoice();
+parts.forEach((part,i)=>{
+const utterance=new SpeechSynthesisUtterance(part.trim());
+if(voice)utterance.voice=voice;
+utterance.rate=1.05;
+if(i===parts.length-1){
+utterance.onend=resolve;
+utterance.onerror=resolve;
+}
+speechSynthesis.speak(utterance);
+});
+});
+}
+
+function listen(){
+if(!call.active)return;
+
+const recognizer=new Recognition();
+call.recognizer=recognizer;
+recognizer.lang="en-AU";
+recognizer.interimResults=true;
+recognizer.continuous=false;
+
+let heard="";
+
+recognizer.onresult=e=>{
+heard=Array.from(e.results).map(r=>r[0].transcript).join("");
+$("callStatus").textContent="🎙️ "+heard;
+};
+
+recognizer.onerror=e=>{
+if(e.error==="not-allowed"||e.error==="service-not-allowed"){
+addMessage("Microphone blocked. Allow the microphone for this page, then call again.");
+endCall();
+}
+};
+
+recognizer.onend=async()=>{
+call.recognizer=null;
+if(!call.active)return;
+heard=heard.trim();
+if(!heard){listen();return;}
+if(/^(bye|goodbye|hang up|end call)\b/i.test(heard)){
+await speak("Talk soon.");
+endCall();
+return;
+}
+setCallState("thinking","💭 Thinking…");
+try{
+const reply=await askEmployee(heard,true);
+if(!call.active)return;
+setCallState("speaking","🔊 Speaking… (tap Interrupt to talk)");
+await speak(reply);
+}catch(error){
+addMessage("Echo couldn't answer: "+error.message);
+if(call.active)await speak("Sorry, I couldn't reach my brain. Check that Ollama is running.");
+}
+if(call.active){
+setCallState("listening","🎙️ Listening…");
+listen();
+}
+};
+
+setCallState("listening","🎙️ Listening…");
+recognizer.start();
+}
+
+function endCall(){
+call.active=false;
+speechSynthesis.cancel();
+if(call.doneSpeaking)call.doneSpeaking();
+if(call.recognizer){
+try{call.recognizer.abort();}catch{}
+call.recognizer=null;
+}
+setCallState("idle","");
+}
+
+window.toggleCall=async function(){
+if(call.active){endCall();return;}
+if(!Recognition||!window.speechSynthesis){
+addMessage("Voice calls need Google Chrome or Microsoft Edge.");
+return;
+}
+call.active=true;
+const employee=rooms[selected];
+addMessage("📞 Call started with "+employee.name+". Say \"bye\" or tap Hang up to end.");
+setCallState("speaking","🔊 Speaking…");
+await speak("Hi, it's "+employee.name+" from Echo. What can I do for you?");
+listen();
+};
+
+// Stop talking so you can speak (like interrupting on a real call).
+window.interruptEcho=function(){
+if(call.active&&call.state==="speaking"){
+speechSynthesis.cancel();
+if(call.doneSpeaking)call.doneSpeaking();
+}
+};
+
+// Ask Echo's phone line (Twilio) to call your mobile.
+window.ringMyPhone=async function(){
+try{
+const response=await fetch(serverURL()+"/api/call-me",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:"{}"
+});
+const data=await response.json().catch(()=>({}));
+addMessage(data.message||data.error||("HTTP "+response.status));
+}catch(error){
+addMessage("Echo's server isn't running: "+error.message);
+}
+};
+
+// Voices load asynchronously in some browsers.
+if(window.speechSynthesis)speechSynthesis.getVoices();
 
 rebuild();
 selectRoom(0);
 resize();
 updateCamera();
 
-requestAnimationFrame(animate);
+if(THREE)requestAnimationFrame(animate);
 
 addMessage("Welcome to Echo Headquarters.");
+
+// When opened from the Echo server, talk to that same server.
+if(location.protocol.startsWith("http"))
+$("server").value=location.origin;
+
+testConnection();
+
+// Enter sends; Shift+Enter adds a new line.
+$("prompt").addEventListener("keydown",e=>{
+if(e.key==="Enter"&&!e.shiftKey){
+e.preventDefault();
+sendMessage();
+}
+});
 
 </script>
 </body>

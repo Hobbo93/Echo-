@@ -6,18 +6,23 @@
 import json
 import os
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from echo_tasks import create_task, load_tasks
-from echo_telegram import send_report, send_alert
+from echo_tasks import EMPLOYEE_ROLES, load_tasks, save_tasks
+from echo_telegram import send_report, send_alert, send_message
+import echo_leads
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
 # Files live next to this script so Echo works from any starting folder.
 ROOT = Path(__file__).resolve().parent
 SCHEDULE_FILE = ROOT / "echo_schedule.json"
+
+# Unreviewed tasks older than this are marked "expired" so reports stay readable.
+EXPIRE_AFTER_DAYS = 7
 
 # The same error is sent to Telegram at most once per hour.
 ALERT_COOLDOWN_SECONDS = 3600
@@ -60,20 +65,47 @@ def save_schedule(schedule):
     os.replace(temp, SCHEDULE_FILE)
 
 
-def task_exists(description):
+def queue_tasks(items):
+    """Queue (employee, description) pairs in one load/save, skipping duplicates."""
     tasks = load_tasks()
+    existing = {task["description"] for task in tasks.values()}
+    added = 0
+    for employee, description in items:
+        if description in existing:
+            continue
+        task_id = str(uuid.uuid4())
+        tasks[task_id] = {
+            "id": task_id,
+            "employee_id": employee,
+            "employee": EMPLOYEE_ROLES[employee],
+            "description": description,
+            "status": "waiting_for_approval",
+            "created": datetime.now(timezone.utc).isoformat(),
+        }
+        existing.add(description)
+        added += 1
+    if added:
+        save_tasks(tasks)
+    return added
 
-    return any(
-        task["description"] == description
-        for task in tasks.values()
-    )
 
-
-def queue_task(employee, description):
-    if task_exists(description):
-        return None
-
-    return create_task(employee, description)
+def expire_old_tasks():
+    tasks = load_tasks()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=EXPIRE_AFTER_DAYS)
+    changed = 0
+    for task in tasks.values():
+        if task.get("status") != "waiting_for_approval":
+            continue
+        try:
+            created = datetime.fromisoformat(task["created"])
+        except (KeyError, ValueError):
+            continue
+        if created < cutoff:
+            task["status"] = "expired"
+            changed += 1
+    if changed:
+        save_tasks(tasks)
+    return changed
 
 
 # ==========================================
@@ -82,24 +114,22 @@ def queue_task(employee, description):
 
 def schedule_content():
     date = today()
-
-    for number in range(1, 51):
-        queue_task(
-            "employee_1",
-            f"{date}: AI video idea {number}. "
-            "Prepare an original video concept. "
-            "Suggest the best social media account. "
-            "Wait for approval."
-        )
-
-    for number in range(1, 51):
-        queue_task(
-            "employee_1",
-            f"{date}: Edited clip idea {number}. "
-            "Identify suitable authorised footage. "
-            "Prepare an editing plan. "
-            "Wait for approval."
-        )
+    items = [
+        ("employee_1",
+         f"{date}: AI video idea {number}. "
+         "Prepare an original video concept. "
+         "Suggest the best social media account. "
+         "Wait for approval.")
+        for number in range(1, DAILY_TARGETS["ai_generated_videos"] + 1)
+    ] + [
+        ("employee_1",
+         f"{date}: Edited clip idea {number}. "
+         "Identify suitable authorised footage. "
+         "Prepare an editing plan. "
+         "Wait for approval.")
+        for number in range(1, DAILY_TARGETS["edited_video_clips"] + 1)
+    ]
+    queue_tasks(items)
 
 
 # ==========================================
@@ -109,7 +139,7 @@ def schedule_content():
 def schedule_leads():
     date = today()
 
-    queue_task(
+    queue_tasks([(
         "employee_4",
         f"{date}: Research up to 20 businesses "
         "that may need websites or AI receptionists. "
@@ -117,7 +147,36 @@ def schedule_leads():
         "Rank the best 5 opportunities. "
         "Do not build demos or contact businesses "
         "without approval."
-    )
+    )])
+
+
+def format_leads(result):
+    lines = [f"ECHO LEADS - {result['date']}",
+             f"Researched {result['researched']} businesses. Top {len(result['top_leads'])}:", ""]
+    for number, lead in enumerate(result["top_leads"], 1):
+        lines.append(f"{number}. {lead['name']} (score {lead['score']})")
+        if lead["reasons"]:
+            lines.append("   " + "; ".join(lead["reasons"]))
+        if lead["phone"]:
+            lines.append("   " + lead["phone"])
+    lines += ["", result["note"]]
+    return "\n".join(lines)
+
+
+def run_lead_research(schedule):
+    """At 3 PM, run real lead research if a Google Places key is set."""
+    date = today()
+    due = current_time().hour >= echo_leads.REPORT_HOUR
+    if not due or schedule.get("last_leads") == date:
+        return
+    schedule["last_leads"] = date
+    save_schedule(schedule)
+    if not echo_leads.API_KEY:
+        print("Lead research skipped: no Google Places key set.")
+        return
+    result = echo_leads.research_leads()
+    print(f"Lead research done: {result['researched']} businesses.")
+    send_message(format_leads(result))
 
 
 # ==========================================
@@ -149,10 +208,11 @@ def generate_report(report_time=None):
         "approved": count("approved"),
         "rejected": count("rejected"),
         "note": (
-            "This is a scheduling report only. "
-            "Research and video generation tools "
-            "are not connected yet, so no work "
-            "has been completed automatically."
+            "Video tasks are plans waiting for your "
+            "approval; video tools are not connected, "
+            "so no videos were made automatically. "
+            "Lead research runs at 3 PM when a "
+            "Google Places key is set."
         )
     }
 
@@ -180,6 +240,11 @@ def run_daily_schedule():
         save_schedule(schedule)
 
         print("Echo daily tasks queued.")
+        expired = expire_old_tasks()
+        if expired:
+            print(f"Marked {expired} old unreviewed tasks as expired.")
+
+    run_lead_research(schedule)
 
     now = current_time().strftime("%H:%M")
 
@@ -233,4 +298,3 @@ if __name__ == "__main__":
             alert_once("Scheduler error: " + str(error))
 
         time.sleep(60)
-      

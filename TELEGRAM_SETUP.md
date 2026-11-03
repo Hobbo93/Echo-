@@ -1,22 +1,38 @@
-# Echo Telegram notifications
+# Echo Telegram setup
 
-1. On Telegram, create a bot with the verified @BotFather account using `/newbot`.
-2. Open your new bot's chat and press **Start**.
-3. Get your numeric chat ID from @userinfobot.
-4. On your Windows PC, open Notepad and save this JSON as `%USERPROFILE%\\.echo_telegram.json` (choose **All Files**, UTF-8):
+Echo uses two Telegram bots:
+
+- **Main bot**: sends reports and alerts, and asks before installing updates.
+- **Chat bot** (optional): lets you chat with Echo from your phone. It must be a different bot, because two programs can't read the same bot's messages.
+
+## Steps
+
+1. On Telegram, message the verified **@BotFather** and send `/newbot`. Copy the token it gives you. This is your main bot.
+2. Send `/newbot` again to make a second bot for chatting, and copy that token too.
+3. Open each new bot's chat and press **Start**.
+4. Message **@userinfobot** to get your numeric chat ID.
+5. Double-click `setup_echo.bat` (or run `py echo_setup.py`) and paste the values when asked. Echo sends a test message when it's done.
+
+Settings are saved privately to `%USERPROFILE%\.echo_telegram.json`, outside the Echo folder, so they are never uploaded to GitHub. **Never share your bot tokens.**
+
+The file looks like this, if you'd rather edit it in Notepad (save as UTF-8, **All Files**):
 
 ```json
-{"bot_token":"YOUR_BOTFATHER_TOKEN","chat_id":"YOUR_NUMERIC_CHAT_ID"}
+{
+  "bot_token": "MAIN_BOT_TOKEN",
+  "chat_id": "YOUR_NUMERIC_CHAT_ID",
+  "chat_bot_token": "SECOND_BOT_TOKEN",
+  "google_places_key": "OPTIONAL_GOOGLE_PLACES_KEY"
+}
 ```
 
-**Never commit this file or share the token.** You can instead set `ECHO_TELEGRAM_TOKEN` and `ECHO_TELEGRAM_CHAT_ID` environment variables.
+Environment variables still work and take priority: `ECHO_TELEGRAM_TOKEN`, `ECHO_TELEGRAM_CHAT_ID`, `ECHO_CHAT_TELEGRAM_TOKEN`, `GOOGLE_PLACES_API_KEY`.
 
-5. In the Echo folder run `py echo_telegram.py` to test. The bot should message your Telegram account.
-6. Run `py echo_scheduler.py` to enable scheduled report notifications while the PC is on.
-7. Run `py echo_preflight.py` any time to check setup. `telegram_notifications: configured` means reports will send.
+## What you'll get
 
-Reports arrive at 6:30 AM, 1 PM and 5:30 PM Adelaide time. If the PC starts late, Echo sends only the latest missed report. A repeating error is sent at most once per hour.
+- Reports at 6:30 AM, 1 PM and 5:30 PM Adelaide time while the PC is on. If the PC starts late, only the latest missed report is sent.
+- The top 5 business leads at 3 PM, if a Google Places key is set.
+- A repeating error is sent at most once per hour.
+- Update requests: reply `APPROVE <code>` or `REJECT <code>` to the main bot.
 
-Note: `echo_telegram_approved_updater.py` reads only the `ECHO_TELEGRAM_TOKEN` and `ECHO_TELEGRAM_CHAT_ID` environment variables, not the JSON file.
-
-This module sends notifications only; it does not receive or authorize replies. Existing approval requirements still apply. Reports reflect the scheduler's actual tracked state, not assumed completed work.
+Run `py echo_preflight.py` any time to check the setup.

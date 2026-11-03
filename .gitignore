@@ -218,3 +218,21 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Echo's private runtime data (never commit)
+echo_tasks.json
+echo_tasks.tmp
+echo_tasks.damaged.json
+echo_approvals.json
+echo_approvals.tmp
+echo_approvals.db
+echo_memory.db
+echo_schedule.json
+echo_schedule.tmp
+echo_report_*.json
+echo_leads_*.json
+content_input/
+content_output/
+content_queue.json
+.echo_telegram.json
+.echo_phone_url

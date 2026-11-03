@@ -7,7 +7,8 @@ import json
 import os
 import urllib.request
 import urllib.error
-from flask import Flask, request, jsonify
+from pathlib import Path
+from flask import Flask, request, jsonify, send_file
 
 from echo_employees import (
     EMPLOYEES,
@@ -20,6 +21,7 @@ from echo_employees import (
 )
 
 app = Flask(__name__)
+ROOT = Path(__file__).resolve().parent
 
 # Office.html is opened straight from disk (origin "null") or from localhost.
 # Only these origins may call the server, and only health + chat;
@@ -29,7 +31,7 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:5000",
     "http://localhost:5000",
 }
-BROWSER_PATHS = {"/health", "/api/chat"}
+BROWSER_PATHS = {"/health", "/api/chat", "/api/employees", "/api/call-me"}
 
 
 @app.after_request
@@ -45,14 +47,15 @@ def allow_office_page(response):
         response.headers["Vary"] = "Origin"
     return response
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-DEFAULT_MODEL = "llama3.2"
+OLLAMA_URL = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
+DEFAULT_MODEL = os.getenv("ECHO_MODEL", "llama3.2")
+MAX_HISTORY = 16  # earlier messages sent back to the model for context
 
 # ==========================================
 # OLLAMA AI CONNECTION
 # ==========================================
 
-def ask_ollama(message, employee):
+def ask_ollama(message, employee, history=()):
 
     system_prompt = (
         f"You are {employee['name']}.\n"
@@ -78,6 +81,7 @@ def ask_ollama(message, employee):
                 "role": "system",
                 "content": system_prompt
             },
+            *history,
             {
                 "role": "user",
                 "content": message
@@ -111,6 +115,16 @@ def ask_ollama(message, employee):
         "content",
         "No response received."
     )
+
+
+# ==========================================
+# 3D OFFICE PAGE
+# ==========================================
+
+@app.route("/", methods=["GET"])
+def office():
+
+    return send_file(ROOT / "Office.html")
 
 
 # ==========================================
@@ -188,8 +202,20 @@ def chat():
         }), 400
 
     employee_data = data.get("employee", {})
+    if not isinstance(employee_data, dict):
+        employee_data = {}
 
     employee_id = data.get("employee_id")
+
+    history = []
+    raw_history = data.get("history", [])
+    if isinstance(raw_history, list):
+        for item in raw_history[-MAX_HISTORY:]:
+            if (isinstance(item, dict)
+                    and item.get("role") in ("user", "assistant")
+                    and isinstance(item.get("content"), str)):
+                history.append({"role": item["role"],
+                                "content": item["content"][:4000]})
 
     # Support the existing 3D office interface,
     # which sends an employee name and role.
@@ -208,9 +234,18 @@ def chat():
                 break
 
     if employee_id not in EMPLOYEES:
-        employee_id = "employee_1"
+        # Extra rooms added in the office start from the general assistant.
+        employee_id = "employee_5"
 
-    employee = EMPLOYEES.get(employee_id)
+    employee = dict(EMPLOYEES.get(employee_id))
+
+    # Edits made in the 3D office (name, role, model, instructions)
+    # override the built-in profile. Safety rules are always added
+    # by ask_ollama regardless.
+    for field in ("name", "role", "model", "instructions"):
+        value = employee_data.get(field)
+        if isinstance(value, str) and value.strip() and value.strip() != "Unassigned":
+            employee[field] = value.strip()[:2000]
 
     if not employee:
         return jsonify({
@@ -222,11 +257,19 @@ def chat():
             "error": "Employee is inactive"
         }), 403
 
+    if data.get("voice") is True:
+        employee["instructions"] = employee.get("instructions", "") + (
+            "\n\nYou are talking out loud on a voice call. Reply like a "
+            "person on the phone: one to three short, natural sentences. "
+            "No lists, headings, emojis or markdown."
+        )
+
     try:
 
         reply = ask_ollama(
             message,
-            employee
+            employee,
+            history
         )
 
         return jsonify({
@@ -234,6 +277,18 @@ def chat():
             "employee_id": employee_id,
             "employee": employee["name"]
         })
+
+    except urllib.error.HTTPError as error:
+
+        detail = error.read().decode("utf-8", "replace")[:300]
+        if error.code == 404:
+            detail = (
+                f"Model '{employee.get('model', DEFAULT_MODEL)}' is not "
+                f"installed. Run: ollama pull {employee.get('model', DEFAULT_MODEL)}"
+            )
+        return jsonify({
+            "error": f"Ollama error {error.code}: {detail}"
+        }), 502
 
     except urllib.error.URLError:
 
@@ -249,6 +304,24 @@ def chat():
         return jsonify({
             "error": str(error)
         }), 500
+
+
+# ==========================================
+# RING MY PHONE (Echo phone line, see PHONE_SETUP.md)
+# ==========================================
+
+@app.route("/api/call-me", methods=["POST", "OPTIONS"])
+def call_me():
+
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    # JSON only: browsers can't send this cross-site without CORS approval.
+    if not request.is_json:
+        return jsonify({"error": "JSON required"}), 415
+
+    import echo_phone
+    return jsonify({"message": echo_phone.call_me()})
 
 
 # ==========================================
@@ -362,7 +435,7 @@ if __name__ == "__main__":
         )
 
     print("=" * 40)
-    print("Server: http://127.0.0.1:5000")
+    print("Open Echo HQ: http://127.0.0.1:5000")
     print("=" * 40)
 
     app.run(

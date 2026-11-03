@@ -32,6 +32,24 @@ def _credentials():
     return token, chat
 
 
+def chat_bot_credentials():
+    """Token and chat ID for the separate Telegram chat bot.
+
+    Env vars win; otherwise "chat_bot_token" in ~/.echo_telegram.json.
+    A private chat ID is your Telegram user ID, so it is the same for every
+    bot and falls back to the main "chat_id".
+    """
+    token = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
+    chat = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()
+    if CONFIG.is_file():
+        try:
+            data = json.loads(CONFIG.read_text(encoding="utf-8-sig"))
+            token = token or str(data.get("chat_bot_token", "")).strip()
+        except (OSError, ValueError, AttributeError):
+            pass
+    return token, chat or _credentials()[1]
+
+
 def is_configured():
     """True when a token and numeric chat ID are available. Sends nothing."""
     token, chat = _credentials()

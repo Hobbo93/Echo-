@@ -1,6 +1,7 @@
 """Echo approval-gated GitHub updater. Standard library only.
-Start with: python echo_telegram_approved_updater.py
-Set ECHO_TELEGRAM_TOKEN and ECHO_TELEGRAM_CHAT_ID in the environment.
+Start with: py echo_telegram_approved_updater.py
+Uses the same Telegram settings as notifications: ECHO_TELEGRAM_TOKEN /
+ECHO_TELEGRAM_CHAT_ID env vars or ~/.echo_telegram.json (see TELEGRAM_SETUP.md).
 """
 import json
 import os
@@ -14,10 +15,11 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
+from echo_telegram import _credentials
+
 REPO_URL = "https://github.com/Hobbo93/Echo-.git"
 ROOT = Path(__file__).resolve().parent
-TOKEN = os.environ.get("ECHO_TELEGRAM_TOKEN", "").strip()
-CHAT_ID = os.environ.get("ECHO_TELEGRAM_CHAT_ID", "").strip()
+TOKEN, CHAT_ID = _credentials()
 STATE_FILE = Path.home() / ".echo_approved_update_state.json"
 BACKUPS = Path.home() / "Echo_update_backups"
 IGNORED = {".git", ".env", "venv", ".venv", "__pycache__", "node_modules"}
@@ -114,7 +116,7 @@ def install(repo, commit):
 def main():
     global CHAT_ID
     if not TOKEN:
-        raise SystemExit("Set ECHO_TELEGRAM_TOKEN first.")
+        raise SystemExit("Telegram is not set up yet. See TELEGRAM_SETUP.md.")
     if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
         updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
         chats = {str(u["message"]["chat"]["id"]) for u in updates
