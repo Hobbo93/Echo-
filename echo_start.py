@@ -9,6 +9,7 @@ from pathlib import Path
 
 from echo_preflight import check_ollama
 from echo_telegram import is_configured, chat_bot_credentials
+import echo_phone
 
 ROOT = Path(__file__).resolve().parent
 
@@ -43,6 +44,11 @@ def main():
         launch("Echo Telegram Chat", "echo_telegram_chat.py")
     else:
         print("Skipped Telegram chat: add a second bot token in setup_echo.bat to enable it.")
+
+    if echo_phone.is_configured():
+        launch("Echo Phone", "echo_phone.py")
+    else:
+        print("Skipped phone calls: see PHONE_SETUP.md to let Echo ring you.")
 
     time.sleep(3)
     webbrowser.open("http://127.0.0.1:5000")

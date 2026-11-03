@@ -15,7 +15,7 @@ MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_telegram_chat.py", "echo_updater.py", "echo_telegram.py",
            "echo_content.py", "echo_automation.py",
            "echo_leads.py", "echo_memory.py", "echo_approvals.py",
-           "echo_setup.py", "echo_start.py"]
+           "echo_setup.py", "echo_start.py", "echo_voice.py", "echo_phone.py"]
 def check_ollama():
     """Is Ollama running, and is Echo's model pulled?"""
     model = os.getenv("ECHO_MODEL", "llama3.2")
@@ -88,6 +88,25 @@ def check():
     results.append({"check": "telegram_polling_conflict",
                     "status": "error" if updater_token and chat_token and updater_token == chat_token else "ok",
                     "detail": "Chat and updater must use different Telegram bot tokens."})
+    try:
+        import echo_voice
+        voice_in, voice_out = echo_voice.can_transcribe(), echo_voice.can_speak()
+    except Exception:
+        voice_in = voice_out = False
+    results.append({"check": "voice_notes_in", "status": "ok" if voice_in else "missing",
+                    "detail": "Optional. setup_echo.bat -> Y for voice notes."})
+    results.append({"check": "voice_notes_out", "status": "ok" if voice_out else "missing",
+                    "detail": "Optional. Uses the Windows voice."})
+    try:
+        import echo_phone
+        phone = echo_phone.is_configured()
+    except Exception:
+        phone = False
+    results.append({"check": "phone_calls", "status": "configured" if phone else "missing",
+                    "detail": "Optional. See PHONE_SETUP.md."})
+    if phone:
+        results.append({"check": "cloudflared", "status": "ok" if shutil.which("cloudflared") else "error",
+                        "detail": "Needed for phone calls. setup_echo.bat -> Y for the tunnel."})
     return results
 
 if __name__ == "__main__":

@@ -235,3 +235,4 @@ content_input/
 content_output/
 content_queue.json
 .echo_telegram.json
+.echo_phone_url

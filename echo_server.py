@@ -31,7 +31,7 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:5000",
     "http://localhost:5000",
 }
-BROWSER_PATHS = {"/health", "/api/chat", "/api/employees"}
+BROWSER_PATHS = {"/health", "/api/chat", "/api/employees", "/api/call-me"}
 
 
 @app.after_request
@@ -257,6 +257,13 @@ def chat():
             "error": "Employee is inactive"
         }), 403
 
+    if data.get("voice") is True:
+        employee["instructions"] = employee.get("instructions", "") + (
+            "\n\nYou are talking out loud on a voice call. Reply like a "
+            "person on the phone: one to three short, natural sentences. "
+            "No lists, headings, emojis or markdown."
+        )
+
     try:
 
         reply = ask_ollama(
@@ -297,6 +304,24 @@ def chat():
         return jsonify({
             "error": str(error)
         }), 500
+
+
+# ==========================================
+# RING MY PHONE (Echo phone line, see PHONE_SETUP.md)
+# ==========================================
+
+@app.route("/api/call-me", methods=["POST", "OPTIONS"])
+def call_me():
+
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    # JSON only: browsers can't send this cross-site without CORS approval.
+    if not request.is_json:
+        return jsonify({"error": "JSON required"}), 415
+
+    import echo_phone
+    return jsonify({"message": echo_phone.call_me()})
 
 
 # ==========================================

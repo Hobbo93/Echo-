@@ -16,6 +16,13 @@ FIELDS = [
     ("google_places_key", "Google Places API key for lead research (optional)"),
 ]
 
+PHONE_FIELDS = [
+    ("twilio_account_sid", "Twilio Account SID (starts with AC)"),
+    ("twilio_auth_token", "Twilio Auth Token"),
+    ("twilio_number", "Your Twilio phone number, e.g. +61412345678"),
+    ("my_phone", "YOUR mobile number, e.g. +61412345678"),
+]
+
 
 def mask(value):
     return value[:4] + "…" + value[-3:] if len(value) > 10 else value
@@ -33,12 +40,25 @@ def main():
     print("Settings are saved to", CONFIG)
     print("Press Enter to keep the current value.\n")
 
-    for key, label in FIELDS:
-        current = str(data.get(key, "")).strip()
-        shown = f" [{mask(current)}]" if current else ""
-        answer = input(f"{label}{shown}: ").strip()
-        if answer:
-            data[key] = answer
+    def ask(fields):
+        for key, label in fields:
+            current = str(data.get(key, "")).strip()
+            shown = f" [{mask(current)}]" if current else ""
+            answer = input(f"{label}{shown}: ").strip()
+            if answer:
+                data[key] = answer.replace(" ", "") if key in ("twilio_number", "my_phone") else answer
+
+    ask(FIELDS)
+
+    phone = input("\nSet up phone calls so Echo can ring you? Needs a Twilio account "
+                  "(see PHONE_SETUP.md) (y/N): ").strip().lower()
+    if phone.startswith("y"):
+        ask(PHONE_FIELDS)
+        for key in ("twilio_number", "my_phone"):
+            value = str(data.get(key, ""))
+            if value and not (value.startswith("+") and value[1:].isdigit()):
+                print(f"\n{key} must look like +61412345678 (with +61, no leading 0). Please run setup again.")
+                return
 
     chat_id = str(data.get("chat_id", ""))
     if chat_id and not chat_id.lstrip("-").isdigit():

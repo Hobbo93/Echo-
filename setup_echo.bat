@@ -26,6 +26,18 @@ if errorlevel 1 (
 )
 
 echo.
+choice /c YN /m "Set up voice notes (talk to Echo on Telegram, about 200 MB)"
+if not errorlevel 2 (
+  py -m pip install -r requirements-voice.txt
+)
+
+echo.
+choice /c YN /m "Install the free tunnel needed for phone calls (only if you have Twilio)"
+if not errorlevel 2 (
+  winget install --id Cloudflare.cloudflared -e --accept-source-agreements --accept-package-agreements
+)
+
+echo.
 py echo_setup.py
 echo.
 echo Checking everything...
