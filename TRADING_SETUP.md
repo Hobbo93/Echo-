@@ -25,3 +25,13 @@ Echo now places approved trades in your **Alpaca paper account**, with practice 
 Alpaca says it accepts customers from around the world. Check that Australia is accepted when you apply for a live account. Then generate **live** API keys, put them in with `setup_echo.bat`, and add `"alpaca_live": true` to the settings file `.echo_telegram.json` in your user folder. Echo will say **LIVE (real money)** on every trade it asks you about. To go back to practice, remove that line.
 
 Echo never trades without your tap, and never withdraws or moves money.
+
+## Trench mode (the default)
+Trench (trench.io) has no API, so Echo doesn't click trades there. Instead:
+- `/market` shows **🟢 UP / 🔴 DOWN / ⚪ WAIT** for every stock on the watchlist, plus a chart of the S&P 500.
+- The evening scan (or `/trade propose`) sends the best UP **or** DOWN idea with a chart. Tap **✅ Place trade** and you get a **Trench ticket**: direction, stake, a safe multiplier, entry, and where to close.
+- You place it on Trench yourself. Echo **watches the price every 5 minutes** and texts you **🔴 CLOSE NOW** at the stop-loss or **🟢 TAKE PROFIT** at the target.
+- `/trade bankroll 500` sets your Trench bankroll; each ticket stakes 2% of it. `/trade open trades` lists what Echo is watching. `/trade stats` shows how many ideas hit their target.
+- `/trade venue alpaca` switches to placing orders with your Alpaca broker instead (`/trade venue trench` switches back).
+
+Trench's multiplier can lose your whole stake quickly, and its licensing isn't publicly confirmed. Only stake money you can afford to lose.

@@ -248,6 +248,21 @@ def handle_command(text):
                 send(CHAT_ID, "The trade was NOT placed: " + str(exc)[:300])
         threading.Thread(target=place, daemon=True).start()
         return True
+    if lower.startswith(("/market", "/trade market")):
+        send(CHAT_ID, "Checking the market…")
+
+        def market():
+            try:
+                send(CHAT_ID, echo_trading.market_overview())
+                rows, meta = echo_trading.candles("SPY")
+                import echo_chart
+                path = Path(tempfile.gettempdir()) / "echo_market.png"
+                path.write_bytes(echo_chart.candle_chart(rows))
+                _upload("sendPhoto", "photo", CHAT_ID, path, "image/png", "S&P 500 (SPY), last 60 days")
+            except Exception as exc:
+                send(CHAT_ID, "Couldn't check the market: " + str(exc)[:200])
+        threading.Thread(target=market, daemon=True).start()
+        return True
     if lower.startswith("/trade propose") or lower.startswith("/trade idea"):
         send(CHAT_ID, "Scanning the watchlist for the best setup…")
         threading.Thread(target=lambda: _safe(echo_trading.send_idea_to_phone), daemon=True).start()
@@ -290,6 +305,7 @@ def handle_command(text):
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
              "• /leads - today's 20 businesses (/findleads gets new ones)\n"
              "• /trade analyse BHP.AX - chart read + risk plan\n"
+             "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
              "• /trade propose - best trade idea with a chart; tap Place trade to approve\n"
              "• /callme - I ring your phone\n"
              "• /new - start a fresh chat")

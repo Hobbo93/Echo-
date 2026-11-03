@@ -179,6 +179,21 @@ def run_trade_scan(schedule):
         print("Trade scan failed:", exc)
 
 
+_last_trench_check = [0.0]
+
+
+def run_trench_watch():
+    """Every 5 minutes, text a close alert when a Trench trade hits its stop or target."""
+    if time.time() - _last_trench_check[0] < 300:
+        return
+    _last_trench_check[0] = time.time()
+    try:
+        for alert in echo_trading.check_trench_trades():
+            echo_trading._telegram_text(alert)
+    except Exception as exc:
+        print("Trench watch failed:", exc)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -262,6 +277,7 @@ def run_daily_schedule():
 
     run_lead_research(schedule)
     run_trade_scan(schedule)
+    run_trench_watch()
 
     now = current_time().strftime("%H:%M")
 

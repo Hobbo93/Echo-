@@ -14,6 +14,10 @@ Commands (Echo HQ chat with the Day Trading Desk, or /trade on Telegram):
   stats                 win rate, profit/loss, best/worst trade
   scan                  best setups on the watchlist right now
   /trade propose        top idea with a chart; tap Place trade (your approval) to place it
+  market                UP / DOWN / WAIT for every stock on the watchlist
+  venue trench          send Trench tickets + close alerts (or: venue alpaca / venue paper)
+  bankroll 500          your Trench bankroll; each ticket stakes 2% of it
+  open trades           Trench trades Echo is watching
 Data: Yahoo Finance public charts (may be delayed). Not financial advice.
 """
 import json
@@ -105,6 +109,7 @@ def analyse(symbol):
     change_5d = (closes[-1] / closes[-6] - 1) * 100
 
     trend = ("uptrend" if price > s20 > s50 else "downtrend" if price < s20 < s50 else "sideways / mixed")
+    call, *_x, call_why = read_direction(rows, price)
     if r >= 70:
         momentum = "overbought (RSI " + format(r, ".0f") + "): pullbacks are common from here"
     elif r <= 30:
@@ -127,6 +132,7 @@ def analyse(symbol):
     f = lambda v: format(v, ",.2f")
     return "\n".join([
         f"{symbol.upper()} {f(price)} {cur} ({change_5d:+.1f}% over 5 days)",
+        f"Call: {'🟢 UP' if call == 'UP' else '🔴 DOWN' if call == 'DOWN' else '⚪ WAIT'} ({call_why})",
         f"Trend: {trend} (20-day avg {f(s20)}, 50-day avg {f(s50)})",
         f"Momentum: {momentum}",
         f"Daily range (ATR): {f(a)} · 20-day support {f(lo20)} · resistance {f(hi20)}",
@@ -216,7 +222,7 @@ def stats():
     j = _load()
     c = j["closed"]
     if not c:
-        return "No closed paper trades yet. Try: analyse BHP.AX, then paper buy."
+        return trench_stats() or "No closed trades yet. Try: /trade propose"
     wins = [t for t in c if t["pnl"] > 0]
     total = sum(t["pnl"] for t in c)
     best = max(c, key=lambda t: t["pnl"])
@@ -230,7 +236,7 @@ def stats():
         f"Average win {avg_win:+,.2f} · average loss {avg_loss:+,.2f}",
         f"Best: {best['symbol']} {best['pnl']:+,.2f} · Worst: {worst['symbol']} {worst['pnl']:+,.2f}",
         "Honest numbers: a good trader can win under half the time and still profit if wins are bigger than losses.",
-    ])
+    ] + ([trench_stats()] if trench_stats() else []))
 
 
 # ==========================================
@@ -255,6 +261,26 @@ def handle(text):
             return positions()
         if re.search(r"\b(stats|win rate|performance|journal)\b", low):
             return stats()
+        if re.search(r"\b(market|up or down|overview)\b", low) and not re.search(r"\banaly", low):
+            return market_overview()
+        m = re.search(r"\bvenue\s+(trench|alpaca|broker|paper)\b", low)
+        if m:
+            st = settings()
+            st["venue"] = "alpaca" if m.group(1) in ("alpaca", "broker") else m.group(1)
+            save_settings(st)
+            return "Trade venue set to " + st["venue"] + "."
+        m = re.search(r"\bbankroll\s+\$?([\d,.]+)", low)
+        if m:
+            st = settings()
+            st["trench_bankroll"] = float(m.group(1).replace(",", ""))
+            save_settings(st)
+            return (f"Trench bankroll set to ${st['trench_bankroll']:,.0f}. Each ticket stakes "
+                    f"{st['trench_risk_pct']:g}% of it (${st['trench_bankroll'] * st['trench_risk_pct'] / 100:,.2f}).")
+        if re.search(r"\b(open trades|trench trades)\b", low):
+            open_t = [t for t in _load().get("trench", []) if t["status"] == "open"]
+            return ("Open Trench trades Echo is watching:\n" + "\n".join(
+                f"- {t['symbol']}: stop {t['stop']:,.2f}, target {t['target']:,.2f}, stake ${t['stake']:,.2f}"
+                for t in open_t)) if open_t else "No open Trench trades."
         if re.search(r"\b(scan|find (a )?trade|best trade|any trades?)\b", low):
             best = scan(top=3)
             if not best:
@@ -287,31 +313,65 @@ PENDING = DIR / "pending.json"
 PENDING_MINUTES = 60
 
 
-def setup_for(symbol):
-    """A pullback-in-an-uptrend setup, or None. Returns plan + rows for the chart."""
+def read_direction(rows, price):
+    """UP, DOWN or WAIT with the numbers behind it."""
+    closes = [r[4] for r in rows]
+    s20, s50, r, a = sma(closes, 20), sma(closes, 50), rsi(closes), atr(rows)
+    dist = (price - s20) / a
+    if price > s20 > s50 and 40 <= r <= 65 and dist <= 1.2:
+        return "UP", s20, s50, r, a, f"uptrend, dipped near the 20-day average, RSI {r:.0f}"
+    if price < s20 < s50 and 35 <= r <= 60 and dist >= -1.2:
+        return "DOWN", s20, s50, r, a, f"downtrend, bounced up near the 20-day average, RSI {r:.0f}"
+    if price > s20 > s50:
+        why = "uptrend but stretched, wait for a dip" if dist > 1.2 or r > 65 else "uptrend, no clean entry"
+    elif price < s20 < s50:
+        why = "downtrend but already oversold, wait for a bounce" if dist < -1.2 or r < 35 else "downtrend, no clean entry"
+    else:
+        why = "no clear trend"
+    return "WAIT", s20, s50, r, a, why
+
+
+def setup_for(symbol, allow_down=False):
+    """An UP (or DOWN) setup, or None. Returns plan + rows for the chart."""
     rows, meta = candles(symbol)
     closes = [r[4] for r in rows]
     price = float(meta.get("regularMarketPrice") or closes[-1])
-    s20, s50, r, a = sma(closes, 20), sma(closes, 50), rsi(closes), atr(rows)
-    if not (price > s20 > s50 and 40 <= r <= 65):
+    direction, s20, s50, r, a, why = read_direction(rows, price)
+    if direction == "WAIT" or (direction == "DOWN" and not allow_down):
         return None
-    dist = (price - s20) / a  # how far above the 20-day average, in daily ranges
-    if dist > 1.2:
-        return None  # too stretched; wait for a pullback
-    strength = (s20 / s50 - 1) * 100
-    score = strength * 2 - dist * 3 - abs(r - 52) / 5
-    stop, target = price - 1.5 * a, price + 3 * a
-    return {"symbol": symbol, "price": price, "stop": stop, "target": target, "rsi": r, "atr": a,
-            "sma20": s20, "sma50": s50, "score": score, "rows": rows,
-            "why": (f"Uptrend (20-day avg {s20:,.2f} above 50-day {s50:,.2f}), pulled back near the 20-day "
-                    f"average, RSI {r:.0f} (not overbought). Stop 1.5× daily range below, target 2× the risk.")}
+    sign = 1 if direction == "UP" else -1
+    strength = abs(s20 / s50 - 1) * 100
+    score = strength * 2 - abs(price - s20) / a * 3 - abs(r - 50) / 5
+    return {"symbol": symbol, "direction": direction, "price": price, "stop": price - sign * 1.5 * a,
+            "target": price + sign * 3 * a, "rsi": r, "atr": a, "sma20": s20, "sma50": s50,
+            "score": score, "rows": rows,
+            "why": (f"{why.capitalize()} (20-day avg {s20:,.2f}, 50-day {s50:,.2f}). "
+                    "Stop 1.5× daily range away, target 2× the risk.")}
+
+
+def market_overview(watchlist=None):
+    """Plain-language UP / DOWN / WAIT for every stock on the watchlist."""
+    lines = ["📊 MARKET NOW (UP = go up, DOWN = go down, WAIT = no edge)"]
+    for sym in watchlist or WATCHLIST:
+        try:
+            rows, meta = candles(sym)
+            price = float(meta.get("regularMarketPrice") or rows[-1][4])
+            d, *_rest, why = read_direction(rows, price)
+            change = (rows[-1][4] / rows[-6][4] - 1) * 100
+        except RuntimeError:
+            continue
+        icon = {"UP": "🟢 UP  ", "DOWN": "🔴 DOWN", "WAIT": "⚪ WAIT"}[d]
+        lines.append(f"{icon} {sym} {price:,.2f} ({change:+.1f}% 5d): {why}")
+    lines += ["", "Send /trade propose for the best one as a ticket with a chart.", DISCLAIMER]
+    return "\n".join(lines)
 
 
 def scan(watchlist=None, top=2):
     found = []
+    allow_down = settings()["venue"] == "trench"
     for sym in watchlist or WATCHLIST:
         try:
-            s = setup_for(sym)
+            s = setup_for(sym, allow_down)
         except RuntimeError:
             continue
         if s:
@@ -328,7 +388,7 @@ def size_for(s):
         except RuntimeError:
             pass
     risk = equity * RISK_PER_TRADE
-    qty = max(1, math.floor(risk / max(s["price"] - s["stop"], 1e-9)))
+    qty = max(1, math.floor(risk / max(abs(s["price"] - s["stop"]), 1e-9)))
     qty = min(qty, math.floor(equity * .25 / s["price"]) or 1)  # never more than 25% of the account in one trade
     return qty, risk, equity
 
@@ -338,14 +398,21 @@ def propose(s):
     import echo_broker
     import echo_chart
     qty, risk, equity = size_for(s)
-    plan = {"symbol": s["symbol"], "qty": qty, "entry": s["price"], "stop": round(s["stop"], 2),
+    plan = {"symbol": s["symbol"], "direction": s.get("direction", "UP"), "qty": qty, "entry": s["price"],
+            "stop": round(s["stop"], 2),
             "target": round(s["target"], 2), "created": datetime.now(timezone.utc).isoformat()}
     DIR.mkdir(parents=True, exist_ok=True)
     PENDING.write_text(json.dumps(plan), encoding="utf-8")
-    where = ("your " + echo_broker.mode() + " broker account") if echo_broker.is_configured() \
-        else "Echo's paper journal (no broker connected yet)"
+    venue = settings()["venue"]
+    if venue == "trench":
+        where = "a Trench ticket (you place it on trench.io; Echo watches the price for you)"
+    elif echo_broker.is_configured():
+        where = "your " + echo_broker.mode() + " broker account"
+    else:
+        where = "Echo's paper journal (no broker connected yet)"
     msg = "\n".join([
-        f"TRADE IDEA: BUY {qty} {s['symbol']} @ about {s['price']:,.2f}",
+        (f"TRADE IDEA: {s['symbol']} {'⬆️ UP' if plan['direction'] == 'UP' else '⬇️ DOWN'} @ about {s['price']:,.2f}"
+         if venue == "trench" else f"TRADE IDEA: BUY {qty} {s['symbol']} @ about {s['price']:,.2f}"),
         f"Stop-loss {plan['stop']:,.2f} · Target {plan['target']:,.2f} · Risk about ${risk:,.0f} "
         f"(1% of ${equity:,.0f})",
         s["why"],
@@ -385,6 +452,11 @@ def approve():
         return "That trade idea has expired or was already handled. Nothing was placed.", None
     PENDING.unlink(missing_ok=True)
     rows, _ = candles(plan["symbol"])
+    if settings()["venue"] == "trench":
+        stake, _pct, mult, msg = trench_ticket(plan)
+        _open_trench_trade(plan, stake, mult)
+        png = echo_chart.candle_chart(rows, plan["entry"], plan["stop"], plan["target"], mark_last=True)
+        return msg, png
     if echo_broker.is_configured():
         order = echo_broker.place_bracket(plan["symbol"], plan["qty"], plan["stop"], plan["target"])
         status, fill = order.get("status", ""), None
@@ -467,3 +539,99 @@ def send_idea_to_phone():
     else:
         _telegram_text(msg)
     return msg
+
+
+# ==========================================
+# TRENCH MODE: Echo researches and sends a ticket, you place it on trench.io,
+# Echo watches the price and tells you when to close.
+# (Trench has no public API, so Echo never clicks trades there for you.)
+# ==========================================
+
+SETTINGS = DIR / "settings.json"
+TRENCH_URL = "https://trench.io"
+
+
+def settings():
+    try:
+        s = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        s = {}
+    s.setdefault("venue", "trench")
+    s.setdefault("trench_bankroll", 500.0)
+    s.setdefault("trench_risk_pct", 2.0)  # stake per trade as % of bankroll (the stake can be lost in full)
+    return s
+
+
+def save_settings(s):
+    DIR.mkdir(parents=True, exist_ok=True)
+    SETTINGS.write_text(json.dumps(s, indent=2), encoding="utf-8")
+
+
+def trench_ticket(plan):
+    s = settings()
+    stake = max(1.0, round(s["trench_bankroll"] * s["trench_risk_pct"] / 100, 2))
+    up = plan.get("direction", "UP") == "UP"
+    stop_pct = abs(plan["entry"] - plan["stop"]) / plan["entry"] * 100
+    safe_mult = max(1, min(10, int(80 / max(stop_pct, .1))))  # keep a stop-loss move well short of wiping the stake
+    return stake, stop_pct, safe_mult, "\n".join([
+        f"🎯 TRENCH TICKET: {plan['symbol']} {'⬆️ UP' if up else '⬇️ DOWN'}",
+        f"Stake: ${stake:,.2f} ({s['trench_risk_pct']:g}% of your ${s['trench_bankroll']:,.0f} Trench bankroll)",
+        f"Multiplier: {safe_mult}x or lower. Higher multipliers can wipe the stake on normal daily wiggles.",
+        f"Entry around {plan['entry']:,.2f}",
+        (f"Close it if the price drops to {plan['stop']:,.2f} ({stop_pct:.1f}% against you), or rises to {plan['target']:,.2f}."
+         if up else f"Close it if the price rises to {plan['stop']:,.2f} ({stop_pct:.1f}% against you), or falls to {plan['target']:,.2f}."),
+        "Echo is now watching the price and will text you when to close.",
+        f"Open Trench: {TRENCH_URL}",
+        "Assume you can lose the whole stake. Education, not financial advice.",
+    ])
+
+
+def _open_trench_trade(plan, stake, mult):
+    j = _load()
+    j.setdefault("trench", []).append({**plan, "stake": stake, "multiplier": mult, "status": "open",
+                                       "opened": datetime.now(timezone.utc).isoformat()})
+    _save(j)
+
+
+def check_trench_trades():
+    """Return alert messages for open Trench trades that hit their stop or target."""
+    j = _load()
+    alerts = []
+    changed = False
+    for t in j.get("trench", []):
+        if t["status"] != "open":
+            continue
+        age_days = (datetime.now(timezone.utc) - datetime.fromisoformat(t["opened"])).days
+        try:
+            price, _ = live_price(t["symbol"])
+        except RuntimeError:
+            continue
+        up = t.get("direction", "UP") == "UP"
+        hit_stop = price <= t["stop"] if up else price >= t["stop"]
+        hit_target = price >= t["target"] if up else price <= t["target"]
+        if hit_stop:
+            t.update(status="loss", exit=price)
+            alerts.append(f"🔴 CLOSE {t['symbol']} ON TRENCH NOW: price {price:,.2f} hit your stop-loss "
+                          f"{t['stop']:,.2f}. Small losses are part of the plan. {TRENCH_URL}")
+        elif hit_target:
+            t.update(status="win", exit=price)
+            alerts.append(f"🟢 TAKE PROFIT on {t['symbol']} ON TRENCH: price {price:,.2f} reached your target "
+                          f"{t['target']:,.2f}. {TRENCH_URL}")
+        elif age_days >= 10:
+            t.update(status="expired", exit=price)
+            alerts.append(f"⏱ {t['symbol']} on Trench hasn't hit its stop or target in 10 days (now {price:,.2f}). "
+                          "Consider closing it.")
+        else:
+            continue
+        changed = True
+    if changed:
+        _save(j)
+    return alerts
+
+
+def trench_stats():
+    done = [t for t in _load().get("trench", []) if t["status"] in ("win", "loss")]
+    if not done:
+        return ""
+    wins = sum(t["status"] == "win" for t in done)
+    return f"Trench ideas: {len(done)} closed, {wins} hit target ({wins / len(done) * 100:.0f}% win rate)."
