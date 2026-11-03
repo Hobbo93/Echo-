@@ -274,164 +274,308 @@ STORAGE,JSON.stringify(rooms)
 );
 
 let scene,camera,renderer,brain,core;
+const roomObjects=[];
+const clickable=[];
+
+// Small helpers for building furniture.
+const M=(color,opts={})=>THREE?new THREE.MeshStandardMaterial({color,roughness:.7,...opts}):null;
+function box(w,h,d,mat,x=0,y=0,z=0,parent){
+const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;
+if(parent)parent.add(m);return m;
+}
+function cyl(rt,rb,h,mat,x=0,y=0,z=0,parent,seg=16){
+const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);
+m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;
+if(parent)parent.add(m);return m;
+}
+
+// Wood floor texture drawn on a canvas (no downloads needed).
+function woodTexture(){
+const c=document.createElement("canvas");c.width=c.height=512;
+const g=c.getContext("2d");
+for(let row=0;row<16;row++){
+let x=-(row%3)*90;
+while(x<512){
+const len=150+Math.random()*120;
+const shade=120+Math.random()*30;
+g.fillStyle=`rgb(${shade+40},${shade},${shade-45})`;
+g.fillRect(x,row*32,len,32);
+g.strokeStyle="rgba(60,35,15,.35)";g.lineWidth=2;
+g.strokeRect(x,row*32,len,32);
+for(let k=0;k<5;k++){
+g.strokeStyle=`rgba(80,50,20,${.08+Math.random()*.1})`;g.lineWidth=1;
+g.beginPath();const yy=row*32+4+Math.random()*24;
+g.moveTo(x,yy);g.bezierCurveTo(x+len/3,yy+3,x+len*2/3,yy-3,x+len,yy);g.stroke();
+}
+x+=len;
+}
+}
+const t=new THREE.CanvasTexture(c);
+t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(4,4);
+t.colorSpace=THREE.SRGBColorSpace;
+return t;
+}
+
+// Monitor screen showing the employee's name and some "work".
+function screenTexture(name,color){
+const c=document.createElement("canvas");c.width=256;c.height=160;
+const g=c.getContext("2d");
+g.fillStyle="#0d1b2e";g.fillRect(0,0,256,160);
+g.fillStyle="#"+color.toString(16).padStart(6,"0");g.fillRect(0,0,256,26);
+g.fillStyle="#fff";g.font="bold 15px Arial";g.fillText(name.slice(0,26),8,18);
+for(let i=0;i<7;i++){
+g.fillStyle=`rgba(120,220,255,${.3+Math.random()*.5})`;
+g.fillRect(10,38+i*16,40+Math.random()*180,7);
+}
+const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
 
 if(THREE){
 scene=new THREE.Scene();
-scene.background=new THREE.Color(0x0b1428);
+scene.background=new THREE.Color(0x9fc4e0);
+scene.fog=new THREE.Fog(0x9fc4e0,45,90);
 
-camera=new THREE.PerspectiveCamera(
-45,1,.1,1000
-);
+camera=new THREE.PerspectiveCamera(45,1,.1,200);
 
-renderer=new THREE.WebGLRenderer({
-canvas:$("office"),
-antialias:true
-});
+renderer=new THREE.WebGLRenderer({canvas:$("office"),antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
 
-renderer.setPixelRatio(
-Math.min(devicePixelRatio,2)
-);
+// Daylight through the windows plus soft room light.
+scene.add(new THREE.HemisphereLight(0xeaf4ff,0x6b5a48,1.1));
+const sun=new THREE.DirectionalLight(0xfff1d6,2.2);
+sun.position.set(18,26,12);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-22,right:22,top:22,bottom:-22,near:1,far:70});
+sun.shadow.bias=-.0005;
+scene.add(sun);
 
-scene.add(new THREE.AmbientLight(0xffffff,1.5));
-
-const light=new THREE.PointLight(0x55ddff,100);
-light.position.set(0,10,0);
-scene.add(light);
-
+// Floor
 const floor=new THREE.Mesh(
-new THREE.BoxGeometry(28,.4,28),
-new THREE.MeshStandardMaterial({
-color:0x182a46
-})
+new THREE.PlaneGeometry(36,30),
+new THREE.MeshStandardMaterial({map:woodTexture(),roughness:.55})
 );
-
-floor.position.y=-.3;
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;
 scene.add(floor);
 
-const grid=new THREE.GridHelper(
-28,28,0x377ca0,0x284260
-);
+// Rug under the meeting area
+const rug=new THREE.Mesh(new THREE.CircleGeometry(4.6,48),M(0x37475e,{roughness:1}));
+rug.rotation.x=-Math.PI/2;rug.position.y=.01;rug.receiveShadow=true;
+scene.add(rug);
 
-grid.position.y=-.08;
-scene.add(grid);
+// Walls: two solid walls and two window walls, cut away so you can see in.
+const wallMat=M(0xe9e4dc,{roughness:.9});
+box(36,4.2,.3,wallMat,0,2.1,-15);
+box(.3,4.2,30,wallMat,-18,2.1,0);
+// Window wall (back-right) with frames and glass
+const glass=new THREE.MeshPhysicalMaterial({color:0xbfe3ff,transparent:true,opacity:.25,roughness:.05,metalness:0,transmission:.6});
+const frame=M(0x2b3138,{metalness:.6,roughness:.4});
+for(let z=-15;z<=15;z+=5){box(.25,4.2,.25,frame,18,2.1,z);}
+box(.25,.25,30,frame,18,4.1,0);box(.25,.6,30,frame,18,.3,0);
+const pane=new THREE.Mesh(new THREE.PlaneGeometry(30,3.4),glass);
+pane.position.set(18,2.2,0);pane.rotation.y=-Math.PI/2;scene.add(pane);
+// Skirting
+box(36,.15,.05,M(0x8a7a66),0,.08,-14.83);
+box(.05,.15,30,M(0x8a7a66),-17.83,.08,0);
 
-brain=new THREE.Mesh(
-new THREE.IcosahedronGeometry(2,3),
-new THREE.MeshStandardMaterial({
-color:0x49dfff,
-emissive:0x1177cc,
-emissiveIntensity:1.3,
-wireframe:true
-})
-);
+// Wall art + whiteboard + clock on the back wall
+box(6,2.2,.08,M(0xffffff,{roughness:.3}),-8,2.4,-14.8);
+box(6.2,.12,.15,M(0x999999),-8,1.25,-14.75);
+const logo=document.createElement("canvas");logo.width=512;logo.height=128;
+const lg=logo.getContext("2d");lg.fillStyle="#0b1428";lg.fillRect(0,0,512,128);
+lg.fillStyle="#65e8ff";lg.font="bold 70px Arial";lg.fillText("ECHO HQ",95,90);
+const logoTex=new THREE.CanvasTexture(logo);logoTex.colorSpace=THREE.SRGBColorSpace;
+const sign=new THREE.Mesh(new THREE.PlaneGeometry(6,1.5),new THREE.MeshStandardMaterial({map:logoTex,emissive:0x113355,emissiveMap:logoTex,emissiveIntensity:.6}));
+sign.position.set(5,2.8,-14.82);scene.add(sign);
+const clock=cyl(.55,.55,.08,M(0xffffff),-17.8,3,-6,scene,32);clock.rotation.z=Math.PI/2;
+cyl(.6,.6,.06,M(0x222222),-17.82,3,-6,scene,32).rotation.z=Math.PI/2;
 
-brain.position.y=3;
-scene.add(brain);
-
-core=new THREE.Mesh(
-new THREE.SphereGeometry(1.3,32,32),
-new THREE.MeshStandardMaterial({
-color:0x66ddff,
-emissive:0x1888ff,
-emissiveIntensity:1,
-transparent:true,
-opacity:.65
-})
-);
-
-core.position.y=3;
-scene.add(core);
-
+// Ceiling light panels (glow only, no ceiling so the camera can see in)
+for(let x=-12;x<=12;x+=8)for(let z=-9;z<=9;z+=6){
+box(2.4,.08,.8,M(0xffffff,{emissive:0xfff6e0,emissiveIntensity:1.2}),x,4.4,z);
 }
 
-const roomObjects=[];
+// Meeting table with Echo's hologram brain in the middle
+const tableTop=cyl(2.6,2.6,.12,M(0x5b4636,{roughness:.4}),0,1.05,0,scene,48);
+cyl(.25,.5,1,M(0x333333,{metalness:.6}),0,.5,0,scene);
+for(let i=0;i<6;i++){
+const a=i/6*Math.PI*2;
+const ch=makeChair(0x2f3d52);
+ch.position.set(Math.cos(a)*3.3,0,Math.sin(a)*3.3);
+ch.rotation.y=-a-Math.PI/2;
+scene.add(ch);
+}
+brain=new THREE.Mesh(
+new THREE.IcosahedronGeometry(1,2),
+new THREE.MeshStandardMaterial({color:0x49dfff,emissive:0x1177cc,emissiveIntensity:1.6,wireframe:true})
+);
+brain.position.y=2.6;scene.add(brain);
+core=new THREE.Mesh(
+new THREE.SphereGeometry(.6,32,32),
+new THREE.MeshStandardMaterial({color:0x66ddff,emissive:0x1888ff,emissiveIntensity:1.2,transparent:true,opacity:.6})
+);
+core.position.y=2.6;scene.add(core);
+const holoLight=new THREE.PointLight(0x55ddff,8,8);holoLight.position.y=2.6;scene.add(holoLight);
+cyl(.7,.8,.1,M(0x223344,{emissive:0x0a3355}),0,1.16,0,scene,32);
 
-const colors=[
-0x4d8dff,
-0x9d70ff,
-0xff70bb,
-0xffa75a,
-0x5de3c0,
-0xffdd65,
-0x75cfff,
-0x9fe96e
-];
+// Plants, sofa, water cooler, bookshelf
+[[-16.5,-13.5],[16,-13.5],[-16.5,13],[16,13],[-6,-13.8],[10,-13.8]].forEach(([x,z])=>makePlant(x,z));
+const sofa=new THREE.Group();
+const sofaMat=M(0x4a5d73,{roughness:.95});
+box(4,.5,1.4,sofaMat,0,.45,0,sofa);box(4,.9,.35,sofaMat,0,1.05,-.55,sofa);
+box(.35,.7,1.4,sofaMat,-1.85,.85,0,sofa);box(.35,.7,1.4,sofaMat,1.85,.85,0,sofa);
+sofa.position.set(-15.5,0,8);sofa.rotation.y=Math.PI/2;scene.add(sofa);
+box(1.6,.45,.9,M(0x6b5040,{roughness:.4}),-13.5,.3,8);
+const shelf=new THREE.Group();
+box(3,3.2,.6,M(0x6b5040),0,1.6,0,shelf);
+for(let s=0;s<4;s++)for(let b=0;b<7;b++){
+box(.25,.55,.4,M([0xb33a3a,0x3a6db3,0x3ab36d,0xd9a441,0x7a4fb3][(s+b)%5]),-1.2+b*.38,.45+s*.78,.12,shelf);
+}
+shelf.position.set(-17.5,0,-2);shelf.rotation.y=Math.PI/2;scene.add(shelf);
+const cooler=new THREE.Group();
+box(.6,1.1,.6,M(0xf0f0f0),0,.55,0,cooler);
+cyl(.28,.28,.7,new THREE.MeshPhysicalMaterial({color:0x8fd3ff,transparent:true,opacity:.6}),0,1.45,0,cooler);
+cooler.position.set(-16.8,0,-10);scene.add(cooler);
+}
+
+function makeChair(color){
+const g=new THREE.Group();
+const fabric=M(color,{roughness:.9}),metal=M(0x222222,{metalness:.7,roughness:.3});
+box(.7,.12,.7,fabric,0,.62,0,g);
+box(.7,.8,.1,fabric,0,1.1,-.32,g);
+cyl(.05,.05,.5,metal,0,.35,0,g,8);
+for(let i=0;i<5;i++){
+const a=i/5*Math.PI*2;
+box(.42,.05,.06,metal,Math.cos(a)*.2,.08,Math.sin(a)*.2,g).rotation.y=-a;
+}
+return g;
+}
+
+function makePlant(x,z){
+const g=new THREE.Group();
+cyl(.35,.28,.6,M(0xc9b8a0,{roughness:.8}),0,.3,0,g);
+const leaf=M(0x3f8a45,{roughness:.8});
+for(let i=0;i<9;i++){
+const l=new THREE.Mesh(new THREE.SphereGeometry(.3+Math.random()*.15,8,6),leaf);
+l.position.set((Math.random()-.5)*.6,.9+Math.random()*.9,(Math.random()-.5)*.6);
+l.scale.y=1.4;l.castShadow=true;g.add(l);
+}
+g.position.set(x,0,z);scene.add(g);
+}
+
+// A simple person: legs, torso, arms that type, head with hair.
+function makePerson(shirt){
+const p=new THREE.Group();
+const skinTones=[0xf1c9a5,0xd9a37c,0xa86f4c,0x7a4b2f,0xe8b896];
+const skin=M(skinTones[Math.floor(Math.random()*skinTones.length)]);
+const pants=M(0x2c3442);
+const shirtM=M(shirt,{roughness:.85});
+// sitting legs
+box(.22,.18,.6,pants,-.14,.72,.25,p);box(.22,.18,.6,pants,.14,.72,.25,p);
+box(.2,.6,.2,pants,-.14,.4,.52,p);box(.2,.6,.2,pants,.14,.4,.52,p);
+box(.22,.1,.32,M(0x1a1a1a),-.14,.06,.6,p);box(.22,.1,.32,M(0x1a1a1a),.14,.06,.6,p);
+// torso
+const torso=box(.56,.75,.32,shirtM,0,1.15,0,p);
+// arms (pivot at shoulder)
+const arms=[];
+[-1,1].forEach(s=>{
+const pivot=new THREE.Group();pivot.position.set(s*.36,1.45,0);
+box(.15,.5,.15,shirtM,0,-.22,.05,pivot);
+const fore=box(.13,.13,.45,skin,0,-.45,.28,pivot);
+pivot.rotation.x=-.25;
+p.add(pivot);arms.push(pivot);
+});
+// head
+const head=new THREE.Group();head.position.set(0,1.78,0);
+const face=new THREE.Mesh(new THREE.SphereGeometry(.22,20,16),skin);face.castShadow=true;head.add(face);
+const hairColors=[0x2a1b10,0x4a3020,0x111111,0x8a6a3a,0x6b3a1e];
+const hair=new THREE.Mesh(new THREE.SphereGeometry(.235,20,16,0,Math.PI*2,0,Math.PI/2),M(hairColors[Math.floor(Math.random()*5)]));
+hair.rotation.x=-.25;head.add(hair);
+box(.04,.04,.02,M(0x111111),-.08,.03,.21,head);box(.04,.04,.02,M(0x111111),.08,.03,.21,head);
+p.add(head);
+p.userData={arms,head,torso};
+return p;
+}
+
+const colors=[0x4d8dff,0x9d70ff,0xff70bb,0xffa75a,0x5de3c0,0xffdd65,0x75cfff,0x9fe96e];
+
+// Desks in rows on either side of the meeting area.
+function deskPosition(i,total){
+const perSide=Math.ceil(total/2);
+const side=i<perSide?-1:1;
+const k=i<perSide?i:i-perSide;
+const cols=Math.min(perSide,4);
+const row=Math.floor(k/cols),col=k%cols;
+const x=side*(8+row*4.5);
+const z=-9+col*(18/Math.max(cols-1,1));
+return {x,z,face:side>0?-Math.PI/2:Math.PI/2};
+}
 
 function createRoom(i,total){
-
-const angle=i/total*Math.PI*2;
-
-const x=Math.cos(angle)*10;
-const z=Math.sin(angle)*10;
-
+const r=rooms[i];
+const color=colors[i%8];
+const {x,z,face}=deskPosition(i,total);
 const group=new THREE.Group();
 group.position.set(x,0,z);
+group.rotation.y=face;
 
-const base=new THREE.Mesh(
-new THREE.BoxGeometry(4,.3,4),
-new THREE.MeshStandardMaterial({
-color:colors[i%8]
-})
-);
+// Desk with legs and a privacy panel
+const wood=M(0xd8c3a5,{roughness:.45});
+const metal=M(0x5a6068,{metalness:.7,roughness:.35});
+box(2.6,.08,1.3,wood,0,1.02,0,group);
+[[-1.2,-.55],[1.2,-.55],[-1.2,.55],[1.2,.55]].forEach(([dx,dz])=>box(.07,1,.07,metal,dx,.5,dz,group));
+box(2.6,.9,.06,M(color,{roughness:.95}),0,1.5,-.68,group);
+box(.6,.7,1.1,M(0xe0e0e0),.85,.4,0,group); // drawers
 
-group.add(base);
+// Monitor showing the employee's name
+const mon=new THREE.Group();
+box(1.3,.8,.06,M(0x111111,{roughness:.3}),0,0,0,mon);
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.72),
+new THREE.MeshStandardMaterial({map:screenTexture(r.name,color),emissive:0xffffff,emissiveMap:screenTexture(r.name,color),emissiveIntensity:.8}));
+scr.position.z=.035;mon.add(scr);
+box(.08,.35,.08,M(0x222222),0,-.55,-.03,mon);
+box(.4,.03,.25,M(0x222222),0,-.72,-.03,mon);
+mon.position.set(0,1.78,-.3);group.add(mon);
+// Keyboard, mouse, mug, lamp
+box(.9,.03,.3,M(0x2a2a2a),0,1.08,.15,group);
+box(.1,.03,.16,M(0x2a2a2a),.65,1.08,.2,group);
+cyl(.07,.06,.16,M(0xffffff),-.9,1.14,.1,group,12);
+if(i%2===0)makeMiniPlant(group,-1.05,-.35);
 
-const desk=new THREE.Mesh(
-new THREE.BoxGeometry(2.4,.2,1.1),
-new THREE.MeshStandardMaterial({
-color:0x354966
-})
-);
+// Chair + person
+const chair=makeChair(0x30363f);chair.position.set(0,0,.95);chair.rotation.y=Math.PI;
+group.add(chair);
+const person=makePerson(color);person.position.set(0,0,.95);person.rotation.y=Math.PI;
+group.add(person);
 
-desk.position.y=1;
-group.add(desk);
-
-const monitor=new THREE.Mesh(
-new THREE.BoxGeometry(1.1,.8,.1),
-new THREE.MeshStandardMaterial({
-color:0x5beaff,
-emissive:0x1877aa,
-emissiveIntensity:.8
-})
-);
-
-monitor.position.set(0,1.55,-.25);
-group.add(monitor);
-
-const head=new THREE.Mesh(
-new THREE.SphereGeometry(.38,16,16),
-new THREE.MeshStandardMaterial({
-color:0xffd2a0
-})
-);
-
-head.position.set(0,1.65,1);
-group.add(head);
-
-const body=new THREE.Mesh(
-new THREE.CylinderGeometry(.35,.45,1,12),
-new THREE.MeshStandardMaterial({
-color:colors[i%8]
-})
-);
-
-body.position.set(0,.85,1);
-group.add(body);
+// Selection ring
+const ring=new THREE.Mesh(new THREE.RingGeometry(1.7,1.85,48),
+new THREE.MeshBasicMaterial({color:0x55dfff,transparent:true,opacity:0,side:THREE.DoubleSide}));
+ring.rotation.x=-Math.PI/2;ring.position.set(0,.02,.3);group.add(ring);
 
 scene.add(group);
+group.traverse(o=>{if(o.isMesh){o.userData.roomIndex=i;clickable.push(o);}});
+roomObjects.push({group,x,z,person,ring,screen:scr,phase:Math.random()*10});
+}
 
-roomObjects.push({group,x,z});
+function makeMiniPlant(parent,x,z){
+cyl(.1,.08,.18,M(0xffffff),x,1.15,z,parent,10);
+const l=new THREE.Mesh(new THREE.SphereGeometry(.16,8,6),M(0x4c9a52));
+l.position.set(x,1.35,z);l.scale.y=1.3;parent.add(l);
 }
 
 function rebuild(){
-
 if(THREE){
 roomObjects.forEach(o=>scene.remove(o.group));
-roomObjects.length=0;
-
+roomObjects.length=0;clickable.length=0;
 rooms.forEach((_,i)=>createRoom(i,rooms.length));
 }
-
 refresh();
 }
 
@@ -566,7 +710,7 @@ window.addEventListener("resize",resize);
 
 let orbit=.7;
 let elevation=.8;
-let distance=29;
+let distance=34;
 
 let dragging=false;
 let lastX=0;
@@ -626,51 +770,53 @@ e.preventDefault();
 
 distance=Math.max(
 12,
-Math.min(48,distance+e.deltaY*.025)
+Math.min(60,distance+e.deltaY*.025)
 );
 
 updateCamera();
 
 },{passive:false});
 
+let busy=false;
 function animate(t){
-
 requestAnimationFrame(animate);
-
-brain.rotation.y+=.005;
-
+brain.rotation.y+=busy?.03:.006;
 brain.rotation.x=Math.sin(t*.001)*.12;
-
-core.scale.setScalar(
-1+Math.sin(t*.003)*.06
-);
-
+core.scale.setScalar(1+Math.sin(t*(busy?.012:.003))*.08);
+roomObjects.forEach((o,i)=>{
+const u=o.person.userData;const sel=i===selected;
+const speed=sel&&busy?.03:.012;
+u.arms[0].rotation.x=-.25+Math.sin(t*speed+o.phase)*.08;
+u.arms[1].rotation.x=-.25+Math.sin(t*speed+o.phase+1.7)*.08;
+u.head.rotation.y=Math.sin(t*.0006+o.phase)*.25;
+u.head.rotation.x=Math.sin(t*.0009+o.phase)*.05;
+o.ring.material.opacity=sel?.55+Math.sin(t*.004)*.3:0;
+});
 renderer.render(scene,camera);
-
 document.querySelectorAll(".label").forEach(label=>{
-
 const i=Number(label.dataset.index);
 const obj=roomObjects[i];
-
 if(!obj)return;
-
-const point=new THREE.Vector3(
-obj.x,3.5,obj.z
-);
-
+const point=new THREE.Vector3(obj.x,3.1,obj.z);
 point.project(camera);
-
-label.style.left=
-((point.x+1)/2*canvas.clientWidth)+"px";
-
-label.style.top=
-((-point.y+1)/2*canvas.clientHeight)+"px";
-
-label.style.display=
-point.z>1?"none":"block";
-
+label.style.left=((point.x+1)/2*canvas.clientWidth)+"px";
+label.style.top=((-point.y+1)/2*canvas.clientHeight)+"px";
+label.style.display=point.z>1?"none":"block";
+label.style.borderColor=i===selected?"#ffd166":"#55dfff";
 });
 }
+
+// Click a desk in the 3D office to pick that employee.
+let downAt=null;
+canvas.addEventListener("pointerdown",e=>{downAt=[e.clientX,e.clientY];});
+canvas.addEventListener("click",e=>{
+if(!THREE||!downAt||Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])>5)return;
+const rect=canvas.getBoundingClientRect();
+const ray=new THREE.Raycaster();
+ray.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);
+const hit=ray.intersectObjects(clickable,false)[0];
+if(hit)selectRoom(hit.object.userData.roomIndex);
+});
 
 function addMessage(text,user=false){
 
@@ -734,6 +880,7 @@ true
 const history=histories[employee.id]||(histories[employee.id]=[]);
 
 addMessage(employee.name+" is thinking…");
+busy=true;
 const thinking=$("messages").lastChild;
 
 try{
@@ -780,6 +927,7 @@ history.splice(0,Math.max(0,history.length-16));
 return reply;
 
 }finally{
+busy=false;
 thinking.remove();
 }
 }
