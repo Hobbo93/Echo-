@@ -311,7 +311,8 @@ def list_employees():
             "id": key,
             "name": value["name"],
             "role": value["role"],
-            "active": value["active"]
+            "active": value["active"],
+            "abilities": value.get("abilities", [])
         }
         for key, value in EMPLOYEES.items()
     ]

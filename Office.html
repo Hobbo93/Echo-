@@ -124,6 +124,8 @@ height:auto;
 
 <section class="panel">
 <h3>Echo Chat</h3>
+<p id="talkingTo" class="small" style="color:#65e8ff;font-weight:bold">Talking to: Echo</p>
+<p class="small">Click any office or person in the building to talk to them.</p>
 
 <div id="messages"></div>
 
@@ -148,7 +150,11 @@ Send Message
 </button>
 
 <button id="callButton" onclick="toggleCall()">
-📞 Call Echo
+🎙️ Talk
+</button>
+
+<button id="voicesButton" onclick="toggleVoices()">
+🔊 Voices on
 </button>
 
 <button id="interruptButton" onclick="interruptEcho()" style="display:none">
@@ -188,7 +194,7 @@ Ollama connection requires the Python backend.
 <label>Choose Room</label>
 <select
 id="roomSelect"
-onchange="selectRoom(Number(this.value))">
+onchange="selectRoom(Number(this.value),true)">
 </select>
 
 <label>Employee Name</label>
@@ -979,7 +985,7 @@ label.className="label";
 label.textContent=r.name;
 label.dataset.index=i;
 
-label.onclick=()=>selectRoom(i);
+label.onclick=()=>selectRoom(i,true);
 
 $("labels").appendChild(label);
 
@@ -999,7 +1005,7 @@ $("employeeStatus").appendChild(p);
 });
 }
 
-window.selectRoom=function(i){
+window.selectRoom=function(i,greet){
 
 selected=Math.max(
 0,Math.min(i,rooms.length-1)
@@ -1012,6 +1018,13 @@ $("employeeName").value=r.name;
 $("employeeRole").value=r.role;
 $("employeeModel").value=r.model;
 $("employeeInstructions").value=r.instructions;
+
+$("talkingTo").textContent="Talking to: "+r.name;
+$("callButton").textContent=call.active?"📞 Hang up":"🎙️ Talk to "+r.name;
+if(greet){
+addMessage(r.name+": "+introFor(r));
+if(voicesOn&&window.speechSynthesis&&!call.active)speak(introFor(r));
+}
 };
 
 window.saveEmployee=function(){
@@ -1190,7 +1203,7 @@ const rect=canvas.getBoundingClientRect();
 const ray=new THREE.Raycaster();
 ray.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);
 const hit=ray.intersectObjects(clickable,false)[0];
-if(hit)selectRoom(hit.object.userData.roomIndex);
+if(hit)selectRoom(hit.object.userData.roomIndex,true);
 });
 
 function addMessage(text,user=false,images=[]){
@@ -1297,6 +1310,7 @@ const reply=data.reply||data.response||
 "No response received.";
 
 addMessage(employee.name+": "+reply,false,data.image?[data.image]:[]);
+if(voicesOn&&!voice&&!call.active&&window.speechSynthesis)speak(reply.slice(0,600));
 
 history.push(
 {role:"user",content:prompt},
@@ -1404,7 +1418,7 @@ const call={active:false,state:"idle",recognizer:null};
 function setCallState(state,text){
 call.state=state;
 $("callStatus").textContent=text;
-$("callButton").textContent=call.active?"📞 Hang up":"📞 Call Echo";
+$("callButton").textContent=call.active?"📞 Hang up":"🎙️ Talk to "+rooms[selected].name;
 $("callButton").classList.toggle("oncall",call.active);
 $("interruptButton").style.display=
 call.active&&state==="speaking"?"inline-block":"none";
@@ -1432,17 +1446,58 @@ return text
 .trim();
 }
 
+// What each office says when you click into it: what they do, and what they need from you.
+const INTROS={
+"Content Creator":"Hey, I'm your Content Creator. I find trending ideas, plan videos and clips, and write captions and hashtags. With OpusClip connected I can clip your Twitch streams and long videos into Shorts. Send me a video link and tell me where to post.",
+"Trading Analyst":"Hi, Trading Analyst here. I research markets and explain what's moving. For trade ideas with charts, head over to the Day Trading Desk.",
+"Shopify Manager":"Hey, I'm your Shopify Manager. I can help plan products, descriptions and store updates. Tell me what you want to sell.",
+"Website and Leads Manager":"Hi, I'm the Website and Leads Manager. Every day at 3 PM I find 20 local businesses that need a website, with phones, emails and photos, ready to build in Base44. I just need your Google Places key to start. Ask me for your leads.",
+"Research Assistant":"Hey, Research Assistant here. Ask me anything you want looked into and I'll dig in.",
+"Technical Support":"Hi, I'm Technical Support. If anything in Echo breaks or looks wrong, tell me what happened and I'll help sort it.",
+"Communications Assistant":"Hey, Communications here. I draft your messages and emails, and once your phone line is set up I can ring you.",
+"Office Coordinator":"Hi, I'm the Office Coordinator. I keep track of everyone's tasks and send your reports at 6:30, 1 and 5:30. Ask me what's going on.",
+"Roblox Map Builder":"Hey! Roblox Map Builder here. Tell me what to build, like a snowy obby with 20 stages or a big night city, and I'll build it straight into Roblox Studio.",
+"Day Trading Desk":"Hi, Day Trading Desk. I scan the market every weekday evening and tell you up, down or wait, with a chart. Say market, scan, or analyse a stock. I only place a trade when you approve it."
+};
+
+// Each office gets its own voice: a different speaker where the browser has
+// several, plus its own pitch and speed.
+let voicesOn=true;
+try{voicesOn=localStorage.getItem("echo_voices")!=="off";}catch{}
+function voiceFor(i){
+const all=speechSynthesis.getVoices().filter(v=>v.lang.toLowerCase().startsWith("en"));
+const score=v=>(/natural|online|neural/i.test(v.name)?4:0)+(/en-au/i.test(v.lang)?2:0)+(/google/i.test(v.name)?1:0);
+const ranked=all.sort((a,b)=>score(b)-score(a));
+const good=ranked.filter(v=>score(v)>=score(ranked[0]||{name:"",lang:""})-2);
+const pool=good.length>1?good:ranked;
+const pitches=[1,.85,1.15,.95,1.1,.8,1.2,1,.9,1.05];
+const rates=[1.05,1,1.08,.98,1.1,1,1.03,.97,1.12,1.02];
+return{voice:pool.length?pool[i%pool.length]:null,pitch:pitches[i%10],rate:rates[i%10]};
+}
+
+window.toggleVoices=function(){
+voicesOn=!voicesOn;
+try{localStorage.setItem("echo_voices",voicesOn?"on":"off");}catch{}
+$("voicesButton").textContent=voicesOn?"🔊 Voices on":"🔇 Voices off";
+if(!voicesOn)speechSynthesis.cancel();
+};
+
+function introFor(r){
+return INTROS[r.name]||("Hi, I'm "+r.name+", your "+(r.role||"assistant")+". Tell me what you need.");
+}
+
 // Speak sentence by sentence: Chrome cuts off long single utterances.
 function speak(text){
 return new Promise(resolve=>{
 speechSynthesis.cancel();
 call.doneSpeaking=resolve;
 const parts=speakable(text).match(/[^.!?]+[.!?]*/g)||[""];
-const voice=pickVoice();
+const v=voiceFor(selected);
 parts.forEach((part,i)=>{
 const utterance=new SpeechSynthesisUtterance(part.trim());
-if(voice)utterance.voice=voice;
-utterance.rate=1.05;
+if(v.voice)utterance.voice=v.voice;
+utterance.rate=v.rate;
+utterance.pitch=v.pitch;
 if(i===parts.length-1){
 utterance.onend=resolve;
 utterance.onerror=resolve;
@@ -1526,7 +1581,7 @@ call.active=true;
 const employee=rooms[selected];
 addMessage("📞 Call started with "+employee.name+". Say \"bye\" or tap Hang up to end.");
 setCallState("speaking","🔊 Speaking…");
-await speak("Hi, it's "+employee.name+" from Echo. What can I do for you?");
+await speak("Hi, it's "+employee.name+". What do you need?");
 listen();
 };
 
@@ -1563,7 +1618,8 @@ updateCamera();
 
 if(THREE)requestAnimationFrame(animate);
 
-addMessage("Welcome to Echo Headquarters.");
+addMessage("Welcome to Echo Headquarters. Click any office to talk to that employee.");
+if(!voicesOn)$("voicesButton").textContent="🔇 Voices off";
 
 // When opened from the Echo server, talk to that same server.
 if(location.protocol.startsWith("http"))
