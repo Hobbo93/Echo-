@@ -239,7 +239,13 @@ def main():
         raise SystemExit("Add your numeric \"chat_id\" to .echo_telegram.json (see TELEGRAM_SETUP.md).")
     shared = shared_bot()
     print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
-    updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
+    while True:  # another Echo window may still be closing; keep trying
+        try:
+            updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
+            break
+        except Exception as exc:
+            print("Waiting for Telegram:", str(exc)[:150], flush=True)
+            time.sleep(10)
     offset = max((u["update_id"] for u in updates), default=-1) + 1
     while True:
         try:
