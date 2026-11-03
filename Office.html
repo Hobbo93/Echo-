@@ -786,7 +786,7 @@ m.rotation.y=bot.rot;
 if(!bot.lookAt||t>bot.lookUntil){bot.lookAt=bot.mode==="work"?rand(-.15,.15):rand(-.6,.6);bot.lookUntil=t+rand(2500,6000);}
 u.head.rotation.y=ease(u.head.rotation.y,bot.lookAt,Math.min(1,dt*2));
 u.head.rotation.x=ease(u.head.rotation.x,bot.sitting&&bot.mode==="work"?.18:0,Math.min(1,dt*2));
-u.shadow.visible=!bot.sitting;
+u.shadow.visible=false; // real cast shadows look better than a fake disc
 }
 
 function goHome(bot){
@@ -820,7 +820,8 @@ else goHome(bot);
 }
 
 if(THREE)buildHQ();
-window.echoHQ={bots,roomByKey,zoomTo,openEcho,openBot,openDept,overview,get feed(){return feed},snap:()=>Object.assign(view,want)};
+window.echoHQ={bots,roomByKey,zoomTo,openEcho,openBot,openDept,overview,get feed(){return feed},snap:()=>Object.assign(view,want),cam:o=>{Object.assign(want,o);Object.assign(view,want);},
+advance:(secs=3)=>{let t=performance.now();for(let i=0;i<secs*30;i++){t+=33;bots.forEach(b=>stepBot(b,.033,t));}updateCamera();renderer.render(scene,camera);return bots.filter(b=>b.sitting).length;}};
 const colors=DEPTS.map(d=>d.color);
 
 function refresh(){

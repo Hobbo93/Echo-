@@ -44,7 +44,8 @@ def check_all(live=False):
     import echo_shopify, echo_email, echo_broker, echo_trading
     add("Echo's brain (all offices)", "Ollama on this PC", _ollama(), "Thinks, writes and answers",
         "Open the Ollama app on the PC.")
-    add("Telegram (approvals + chat)", "Telegram bots", c.get("bot_token") and c.get("chat_id"),
+    import echo_telegram
+    add("Telegram (approvals + chat)", "Telegram bots", echo_telegram.is_configured(),
         "Texts you, sends photos, takes your Yes/No", "Run setup_echo.bat (TELEGRAM_SETUP.md).")
     add("Shopify Manager", "Your Shopify store", echo_shopify.is_configured(),
         "Adds products, changes prices and stock, discount codes, reads orders",
