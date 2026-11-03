@@ -122,9 +122,10 @@ EMPLOYEES = {
     "employee_4": employee(
         "Website and Leads Manager",
         "Adelaide Business Research",
-        "Research 20 Adelaide businesses daily at 3 PM "
-        "when scheduling and web research are connected. "
-        "Recommend the strongest five opportunities. "
+        "Find 20 new southern Adelaide businesses daily at 3 PM "
+        "(Google Places), with phone, email if published, photos and "
+        "a website brief ready for Base44. Ask me for 'my leads' or "
+        "'find new leads'. Recommend the strongest five opportunities. "
         "Distinguish verified facts from assumptions. "
         "Never contact businesses or publish demos "
         "without approval.",

@@ -13,7 +13,7 @@ FIELDS = [
     ("bot_token", "Main bot token (reports + update approvals), from @BotFather"),
     ("chat_id", "Your numeric chat ID, from @userinfobot"),
     ("chat_bot_token", "Second bot token for chatting with Echo (optional)"),
-    ("google_places_key", "Google Places API key for lead research (optional)"),
+    ("google_places_key", "Google Places API key for finding leads (optional, see LEADS_SETUP.md)"),
 ]
 
 PHONE_FIELDS = [

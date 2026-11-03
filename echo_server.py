@@ -12,6 +12,8 @@ import urllib.error
 from pathlib import Path
 import echo_photos
 import echo_roblox
+import echo_leads
+import threading
 from flask import Flask, request, jsonify, send_file
 
 from echo_employees import (
@@ -284,6 +286,21 @@ def chat():
 
     try:
 
+        if (not images and employee_id == "employee_4"
+                and echo_leads.looks_like_leads_request(message)):
+            fresh = any(w in message.lower() for w in ("new", "find", "more", "today"))
+            result = None if fresh else echo_leads.latest()
+            if result:
+                reply = echo_leads.summary(result)
+            elif not echo_leads.API_KEY:
+                reply = ("I need a Google Places API key to find businesses. Run setup_echo.bat "
+                         "and paste it in (LEADS_SETUP.md shows how to get one).")
+            else:
+                threading.Thread(target=lambda: echo_leads.research_leads(), daemon=True).start()
+                reply = ("Finding 20 new local businesses with phones, emails and photos. It takes a "
+                         "few minutes; ask me for 'my leads' shortly, or check Echo_leads in your user folder.")
+            return jsonify({"reply": reply, "employee_id": employee_id, "employee": employee["name"]})
+
         if (not images and employee_id == "employee_9"
                 and echo_roblox.looks_like_build_request(message)):
             result = echo_roblox.build(message)
@@ -362,6 +379,11 @@ def vision_status():
 def vision_install():
     started = echo_photos.pull_vision_in_background()
     return jsonify({"started": started, **echo_photos.pull_state})
+
+
+@app.route("/api/leads", methods=["GET"])
+def leads_latest():
+    return jsonify(echo_leads.latest() or {})
 
 
 # ==========================================

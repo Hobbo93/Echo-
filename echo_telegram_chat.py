@@ -26,6 +26,7 @@ MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 import echo_voice
 import echo_photos
 import echo_roblox
+import echo_leads
 
 
 def telegram(method, params=None):
@@ -226,6 +227,26 @@ def handle_command(text):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         send(CHAT_ID, echo_roblox.describe(echo_roblox.build(request)))
         return True
+    if lower.startswith(("/leads", "/findleads")):
+        fresh = lower.startswith("/findleads") or "new" in lower
+        result = None if fresh else echo_leads.latest()
+        if result:
+            send(CHAT_ID, echo_leads.summary(result))
+            return True
+        if not echo_leads.API_KEY:
+            send(CHAT_ID, "I need a Google Places API key to find businesses. Run setup_echo.bat on "
+                          "your PC and paste it in (LEADS_SETUP.md shows how to get one).")
+            return True
+        send(CHAT_ID, "Finding 20 new local businesses, with phones, emails and photos. "
+                      "This takes a few minutes; I'll message you the list.")
+
+        def run():
+            try:
+                send(CHAT_ID, echo_leads.summary(echo_leads.research_leads()))
+            except Exception as exc:
+                send(CHAT_ID, "Lead research didn't finish: " + str(exc)[:300])
+        threading.Thread(target=run, daemon=True).start()
+        return True
     if lower.startswith("/maps"):
         maps = echo_roblox.list_maps(10)
         send(CHAT_ID, "Your Roblox maps:\n" + "\n".join(m.name for m in maps) if maps
@@ -238,6 +259,7 @@ def handle_command(text):
              "• /screenshot - photo of your PC screen\n"
              "• /photos and /photo 1 - get saved photos back\n"
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
+             "• /leads - today's 20 businesses (/findleads gets new ones)\n"
              "• /callme - I ring your phone\n"
              "• /new - start a fresh chat")
         return True

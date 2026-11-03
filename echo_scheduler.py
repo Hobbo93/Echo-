@@ -176,7 +176,7 @@ def run_lead_research(schedule):
         return
     result = echo_leads.research_leads()
     print(f"Lead research done: {result['researched']} businesses.")
-    send_message(format_leads(result))
+    send_message(echo_leads.summary(result))
 
 
 # ==========================================
@@ -211,8 +211,8 @@ def generate_report(report_time=None):
             "Video tasks are plans waiting for your "
             "approval; video tools are not connected, "
             "so no videos were made automatically. "
-            "Lead research runs at 3 PM when a "
-            "Google Places key is set."
+            "Lead research finds 20 new businesses at 3 PM "
+            "when a Google Places key is set."
         )
     }
 
