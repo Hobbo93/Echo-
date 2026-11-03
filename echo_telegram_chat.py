@@ -418,7 +418,12 @@ def main():
                         continue
                     if text.startswith("/callme"):
                         import echo_phone
-                        send(CHAT_ID, echo_phone.call_me("Hi, it's Echo. You asked me to call. What's up?"))
+                        needs = echo_phone.briefing()
+                        send(CHAT_ID, echo_phone.call_me(
+                            "Hi, it's Echo. You asked me to call. " + ("Quick update: " + "; ".join(needs[:3]) + ". "
+                                                                     if needs else "") + "What's up?",
+                            topic="Current needs: " + "; ".join(needs),
+                            approval="trade" if any("trade idea" in n for n in needs) else None))
                         continue
                     if text.startswith("/new"):
                         history.clear()
@@ -438,7 +443,8 @@ def main():
         except KeyboardInterrupt:
             return
         except Exception as exc:
-            print("Echo Telegram chat error:", exc, flush=True)
+            if "timed out" not in str(exc).lower() and "10054" not in str(exc):
+                print("Echo Telegram chat error:", exc, flush=True)  # brief internet drops are normal
             time.sleep(5)
 
 

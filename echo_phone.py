@@ -45,6 +45,10 @@ SYSTEM_PROMPT = (
 )
 
 calls = {}  # CallSid -> conversation history
+CALL_CONTEXT = Path.home() / ".echo_calls.json"   # why each call was made (shared between Echo's windows)
+CALL_LOG = Path.home() / ".echo_call_log.json"     # when Echo last rang, to avoid pestering
+QUIET_START, QUIET_END = 21, 8                      # no calls 9 PM - 8 AM unless urgent
+MAX_CALLS_PER_DAY = 6
 
 
 def _persona():
@@ -134,8 +138,30 @@ def twiml(*parts):
     return '<?xml version="1.0" encoding="UTF-8"?><Response>' + "".join(parts) + "</Response>"
 
 
-def call_me(message="Hi, it's Echo. What can I do for you?"):
-    """Ring your phone and start a conversation. Returns a status message."""
+def _read(path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return default
+
+
+def _context(sid):
+    return _read(CALL_CONTEXT, {}).get(sid, {})
+
+
+def _save_context(sid, ctx):
+    data = _read(CALL_CONTEXT, {})
+    data[sid] = ctx
+    data = dict(list(data.items())[-30:])
+    CALL_CONTEXT.write_text(json.dumps(data), encoding="utf-8")
+
+
+def call_me(message="Hi, it's Echo. What can I do for you?", topic="", approval=None):
+    """Ring your phone and start a conversation. Returns a status message.
+
+    topic: background the AI should know during the call.
+    approval: "trade" or "update" - saying yes on the call approves it.
+    """
     if not is_configured():
         return "Echo's phone line isn't set up yet. See PHONE_SETUP.md."
     base = public_url()
@@ -143,13 +169,69 @@ def call_me(message="Hi, it's Echo. What can I do for you?"):
         return "Echo's phone line isn't running. Start Echo with start_echo.bat."
     s = settings()
     try:
-        twilio("POST", "Calls.json", {
+        call = twilio("POST", "Calls.json", {
             "To": s["my_phone"], "From": s["number"],
             "Twiml": twiml(gather(message, base), say("Okay, talk soon."), "<Hangup/>"),
         })
     except Exception as exc:
         return "Echo couldn't ring you: " + str(exc)
+    _save_context(call.get("sid", ""), {"topic": topic or message, "opening": message, "approval": approval})
+    log = _read(CALL_LOG, [])
+    log.append(time.time())
+    CALL_LOG.write_text(json.dumps(log[-50:]), encoding="utf-8")
     return "Calling you now 📞"
+
+
+def may_call(urgent=False):
+    """Respect quiet hours and a daily limit so Echo doesn't pester you."""
+    if not is_configured() or not public_url():
+        return False
+    hour = time.localtime().tm_hour
+    if not urgent and (hour >= QUIET_START or hour < QUIET_END):
+        return False
+    today = [t for t in _read(CALL_LOG, []) if t > time.time() - 86400]
+    return len(today) < MAX_CALLS_PER_DAY
+
+
+def briefing():
+    """What the AI employees need from you right now, said like a person on the phone."""
+    needs = []
+    try:
+        import echo_trading
+        p = echo_trading.pending()
+        if p:
+            needs.append(f"the Day Trading Desk has a trade idea: {p['symbol']} "
+                         f"{'up' if p.get('direction', 'UP') == 'UP' else 'down'}, stop {p['stop']:.2f}, "
+                         f"target {p['target']:.2f}")
+    except Exception:
+        pass
+    try:
+        from echo_telegram import PENDING_FILE
+        if PENDING_FILE.exists():
+            needs.append("there's an Echo update waiting for your yes or no")
+    except Exception:
+        pass
+    try:
+        import echo_business
+        urgent = [t for t in echo_business._tickets() if t["status"] == "open" and t["urgent"]]
+        if urgent:
+            needs.append(f"Customer Support has {len(urgent)} urgent enquiry, from {urgent[0]['customer']}")
+        fu = echo_business.follow_ups()
+        if fu.startswith("Follow-ups due"):
+            needs.append(f"the Sales Agent has {len(fu.splitlines()) - 1} follow-ups due")
+        bad = [l[2:] for l in echo_business.status_text().splitlines() if l.startswith("🔴")]
+        if bad:
+            needs.append("Operations says " + bad[0])
+    except Exception:
+        pass
+    try:
+        from echo_tasks import load_tasks
+        waiting = sum(t["status"] == "waiting_for_approval" for t in load_tasks().values())
+        if waiting:
+            needs.append(f"{waiting} tasks are waiting for approval")
+    except Exception:
+        pass
+    return needs
 
 
 # ==========================================
@@ -170,6 +252,33 @@ def ask_echo(history, message):
 # ==========================================
 # PHONE SERVER (the only part reachable from the internet)
 # ==========================================
+
+def _do_approval(kind, choice):
+    """Carry out a yes/no given on the phone; also tells you on Telegram."""
+    try:
+        if kind == "update":
+            from echo_telegram import DECISION_FILE, PENDING_FILE
+            if not PENDING_FILE.exists():
+                return "That update was already handled."
+            DECISION_FILE.write_text(choice, encoding="utf-8")
+            return "Done, installing the update." if choice == "yes" else "Okay, I'll skip that update."
+        if kind == "trade":
+            import echo_trading
+            if choice == "no":
+                echo_trading.skip()
+                return "Okay, skipped. No trade."
+            msg, png = echo_trading.approve()
+            try:
+                echo_trading._telegram_text("Approved on the phone:\n" + msg)
+                if png:
+                    echo_trading._telegram_photo(png, "Your trade: blue entry, red stop, green target")
+            except Exception:
+                pass
+            return "Done. I've sent the details and a chart to your Telegram."
+    except Exception as exc:
+        return "Sorry, that didn't work: " + str(exc)[:120]
+    return "Okay."
+
 
 def create_app():
     from flask import Flask, request, Response, abort
@@ -192,8 +301,13 @@ def create_app():
         params = checked()
         if params.get("From") != settings()["my_phone"]:
             return xml(twiml(say("Sorry, this line is private."), "<Hangup/>"))
-        return xml(twiml(gather("Hi, it's Echo. What can I do for you?"),
-                         say("Okay, talk soon."), "<Hangup/>"))
+        needs = briefing()
+        hello = ("Hi, it's Echo. " + ("Quick update: " + "; ".join(needs[:3]) + ". What would you like to do?"
+                                      if needs else "Everything's running smoothly. What can I do for you?"))
+        _save_context(params.get("CallSid", ""), {"topic": "You called Echo. Current needs: " + "; ".join(needs),
+                                                  "opening": hello,
+                                                  "approval": "trade" if any("trade idea" in n for n in needs) else None})
+        return xml(twiml(gather(hello), say("Okay, talk soon."), "<Hangup/>"))
 
     @app.post("/phone/reply")
     def reply():
@@ -208,7 +322,21 @@ def create_app():
         if re.match(r"^(bye|goodbye|that's all|hang up)\b", heard, re.I):
             calls.pop(sid, None)
             return xml(twiml(say("No worries. Talk soon!"), "<Hangup/>"))
+        ctx = _context(sid)
+        if sid not in calls and ctx:
+            calls[sid] = [{"role": "assistant", "content": ctx.get("opening", "")},
+                          {"role": "user", "content": "(Background for you, Echo: " + ctx.get("topic", "") + ")"},
+                          {"role": "assistant", "content": "Got it."}]
         history = calls.setdefault(sid, [])
+        approval = ctx.get("approval")
+        if approval:
+            from echo_telegram import yes_no
+            choice = yes_no(heard)
+            if choice:
+                ctx["approval"] = None
+                _save_context(sid, ctx)
+                spoken = _do_approval(approval, choice)
+                return xml(twiml(gather(spoken + " Anything else?"), say("Talk soon."), "<Hangup/>"))
         try:
             answer = ask_echo(history[-12:], heard) or "Sorry, I'm not sure."
         except Exception:

@@ -1,5 +1,12 @@
 # Echo phone calls
 
+## What Echo does with its phone number
+- **Your employees ring you when they need you:** a trade idea to approve, an Echo update, an urgent customer, follow-ups due, or something broken. Echo explains, and you can just say **"yes"** or **"no"** on the call to approve or skip a trade or update. Details and charts also go to Telegram.
+- **You can ring Echo any time:** it tells you what the employees need, then you just talk.
+- **It doesn't pester you:** each new issue gets one call, at most 6 calls a day, and none between 9 PM and 8 AM.
+- `/callme` on Telegram or **Ring my phone** in Echo HQ rings you straight away.
+
+
 With this set up you can **ring Echo** from your mobile, and **Echo can ring you** (tap **📱 Ring my phone** in Echo HQ, or send `/callme` to the Echo chat bot on Telegram). You talk normally; Echo answers in an Australian voice. Say "bye" to hang up.
 
 It works while your PC is on and Echo is running.

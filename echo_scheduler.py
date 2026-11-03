@@ -223,6 +223,42 @@ def run_ops_check(schedule):
         send_alert("Operations Manager: something needs attention\n" + "\n".join(problems))
 
 
+_last_call_check = [0.0]
+
+
+def run_phone_checkins(schedule):
+    """Every 5 minutes: if an employee needs you (trade approval, update, urgent customer,
+    something broken, follow-ups), Echo rings you - once per new need, never 9 PM-8 AM."""
+    if time.time() - _last_call_check[0] < 300:
+        return
+    _last_call_check[0] = time.time()
+    try:
+        import echo_phone
+        needs = echo_phone.briefing()
+        new = [n for n in needs if n not in schedule.get("called_about", [])]
+        if not new or not echo_phone.may_call():
+            return
+        approval = None
+        if any("trade idea" in n for n in new):
+            approval = "trade"
+        elif any("update waiting" in n for n in new):
+            approval = "update"
+        opening = "Hi, it's Echo. " + "; ".join(new[:3]) + "."
+        if approval == "trade":
+            opening += " Want me to go ahead with the trade? Just say yes or no."
+        elif approval == "update":
+            opening += " Should I install the update? Yes or no."
+        else:
+            opening += " Anything you'd like me to do?"
+        result = echo_phone.call_me(opening, topic="Employees need: " + "; ".join(needs), approval=approval)
+        print("Phone check-in:", result)
+        if result.startswith("Calling"):
+            schedule["called_about"] = (schedule.get("called_about", []) + new)[-40:]
+            save_schedule(schedule)
+    except Exception as exc:
+        print("Phone check-in failed:", exc)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -309,6 +345,7 @@ def run_daily_schedule():
     run_trench_watch()
     run_ceo_summary(schedule)
     run_ops_check(schedule)
+    run_phone_checkins(schedule)
 
     now = current_time().strftime("%H:%M")
 
