@@ -481,3 +481,152 @@ def handle(employee_name, text):
     except Exception as exc:
         return "Something went wrong: " + str(exc)[:200]
     return None
+
+
+# ==========================================
+# OFFICE FEED: what each department is working on, needs, and chats about
+# (drives the bots and speech bubbles in the 3D HQ)
+# ==========================================
+
+def _safe(fn, default=None):
+    try:
+        return fn()
+    except Exception:
+        return default
+
+
+def office_feed():
+    feed = {}
+
+    def dept(key, working, needs, chatter):
+        feed[key] = {"working": [w for w in working if w], "needs": [n for n in needs if n],
+                     "chatter": [c for c in chatter if c]}
+
+    tasks = _safe(lambda: list(__import__("echo_tasks").load_tasks().values()), []) or []
+    waiting = lambda name: sum(1 for t in tasks if t.get("employee") == name and t["status"] == "waiting_for_approval")
+    rec = _safe(lambda: [json.loads(l) for l in (RECORDS / (date.today().isoformat() + ".jsonl")).read_text(
+        encoding="utf-8").splitlines() if l.strip()], []) or []
+    done = lambda office: [r["done"] for r in rec if r["office"] == office][-3:]
+
+    # Sales
+    p = _safe(_pipeline, {}) or {}
+    counts = {s: sum(l["stage"] == s for l in p.values()) for s in STAGES}
+    fu = _safe(follow_ups, "")
+    dept("sales",
+         [f"{len(p)} businesses in the pipeline" if p else "Waiting for today's leads",
+          f"{counts['contacted']} contacted, {counts['meeting']} meetings, {counts['won']} won" if p else ""] + done("Sales Agent"),
+         ["Follow-ups are due" if fu.startswith("Follow-ups due") else "",
+          "" if p else "No leads yet: the Leads Manager needs the Google Places key"],
+         [("Who's next on the call list?", f"{counts['new']} fresh leads, start with the ones with no website." if p else "Nobody yet. We need leads first."),
+          ("Did we hear back from anyone?", "Follow-ups are due, we should nudge them." if fu.startswith("Follow-ups due") else "Not yet, give it a couple of days."),
+          ("Any wins this month?", f"{counts['won']} so far!" if counts["won"] else "Not yet. Let's get the first one.")])
+
+    # Web design + leads + Roblox
+    leads = _safe(lambda: __import__("echo_leads").latest())
+    key = _safe(lambda: bool(__import__("echo_leads").API_KEY), False)
+    maps = _safe(lambda: len(__import__("echo_roblox").list_maps(100)), 0)
+    dept("webdesign",
+         [f"{leads['researched']} businesses found on {leads['date']}" if leads else "Ready to find 20 local businesses a day",
+          f"{maps} Roblox maps built" if maps else "Roblox Map Builder is ready for requests"] + done("Website and Leads Manager"),
+         ["" if key else "Needs the Google Places key to find leads (LEADS_SETUP.md)"],
+         [("Got any new businesses for us?", "Twenty fresh ones today, briefs are ready for Base44." if leads else "Can't search yet, we still need that Google key."),
+          ("Which ones need a site the most?", "The busy ones with great reviews and no website."),
+          ("Anyone asked for a Roblox map?", f"We've built {maps} so far." if maps else "Not yet, I'm ready when Tailen is.")])
+
+    # Content + editing
+    cw = waiting("Content Creator")
+    dept("content",
+         [f"{cw} video and clip ideas planned" if cw else "Planning today's content ideas", "Clipping long videos into Shorts with OpusClip"],
+         [f"{cw} ideas are waiting for Tailen's approval" if cw else "", "Video tools aren't connected to Echo yet, so ideas stay as plans"],
+         [("How many ideas today?", f"{cw} waiting for approval." if cw else "Working on a fresh batch."),
+          ("Can we post anything yet?", "Only once Tailen approves. That's the rule."),
+          ("What's trending?", "Short reaction clips and quick tips are doing well.")])
+    dept("editing",
+         ["Cleaning up clips: captions, cutting filler words and pauses", "Ready to polish Twitch streams and YouTube videos"],
+         ["Send a video or Twitch link to start a clip batch"],
+         [("Got footage to edit?", "Waiting on the next stream link."),
+          ("Captions or no captions?", "Always captions. Most people watch on mute."),
+          ("Should we cut the ums?", "Every single one.")])
+
+    # Marketing, research
+    dept("marketing", ["Planning campaigns and watching competitors"] + done("Marketing Manager"),
+         ["Tell me what to promote and the budget (I never spend without approval)"],
+         [("What are we promoting this week?", "The website service. Local businesses need it."),
+          ("Ads or organic?", "Organic first, ads once we know what converts.")])
+    dept("research", ["Scanning new AI tools and income ideas"] + done("Research Agent"),
+         [], [("Found anything good?", "A few AI tools that could automate more of our work."),
+              ("Any new income ideas?", "AI receptionists for tradies look promising.")])
+
+    # Operations
+    st = _safe(status_text, "") or ""
+    bad = [l[2:] for l in st.splitlines() if l.startswith("🔴")]
+    dept("operations",
+         ["Monitoring every part of Echo", f"{len(rec)} things recorded as done today"],
+         bad or [],
+         [("Everything running?", "All systems green." if not bad else "Not quite: " + bad[0]),
+          ("Reports going out on time?", "6:30, 1 and 5:30, like clockwork."),
+          ("Anyone slacking?", f"Nope. {len(rec)} jobs done today.")])
+
+    # Finance
+    ms = _safe(lambda: month_summary(short=True), "") or ""
+    subs = len(_safe(_ledger, {"subscriptions": []})["subscriptions"])
+    dept("finance", [ms or "Tracking income and expenses", f"{subs} subscriptions tracked" if subs else ""],
+         ["" if subs else "Tell me your subscriptions so I can track running costs"],
+         [("How are we tracking this month?", ms or "Nothing logged yet this month."),
+          ("Any bills coming up?", f"{subs} subscriptions to watch." if subs else "I don't know any yet, need Tailen to tell me.")])
+
+    # Shopify
+    dept("shopify", ["Researching profitable products and pricing"],
+         ["Needs a Shopify connection to manage the real store"],
+         [("Any winning products?", "A few trending ones, need Tailen's pick."),
+          ("Prices competitive?", "I'm checking competitors now.")])
+
+    # Trading
+    tr = _safe(lambda: __import__("echo_trading"))
+    pend = _safe(lambda: tr.pending()) if tr else None
+    opens = _safe(lambda: [t for t in tr._load().get("trench", []) if t["status"] == "open"], []) if tr else []
+    tst = _safe(lambda: tr.trench_stats(), "") if tr else ""
+    dept("trading",
+         [f"Watching {len(opens)} open Trench trades" if opens else "Scanning the market every weekday at 7:30 PM", tst],
+         [f"Trade idea waiting for approval: {pend['symbol']}" if pend else ""],
+         [("What's the market doing?", "Mostly WAIT right now. No clean setups." if not pend else f"{pend['symbol']} looks good, sent it to Tailen."),
+          ("Should we trade?", "Only with Tailen's yes. And only good setups."),
+          ("Win rate?", tst or "No closed trades yet, we're being patient.")])
+
+    # Support
+    tk = _safe(lambda: [x for x in _tickets() if x["status"] == "open"], []) or []
+    urg = [x for x in tk if x["urgent"]]
+    dept("support", [f"{len(tk)} customer enquiries open" if tk else "Inbox clear, ready for enquiries"] + done("Customer Support"),
+         [f"Urgent enquiry from {urg[0]['customer']}" if urg else ""],
+         [("Any customers waiting?", f"{len(tk)} open, {len(urg)} urgent." if tk else "All quiet right now."),
+          ("How's satisfaction?", "Happy so far!")])
+
+    # CEO
+    goals = load("goals", [])
+    dept("ceo", ["Keeping everyone focused on: " + goals[-1]["goal"] if goals else "Waiting for Tailen's goals",
+                 "Daily business summary at 6 PM"],
+         ["" if goals else "Tell me your goal: 'my goal is ...'"],
+         [("What's the priority today?", "Get the first website client." if not goals else goals[-1]["goal"]),
+          ("Everyone on track?", "Mostly. A few things need Tailen's approval.")])
+    dept("relax", ["Recharging and brainstorming new ideas"], [],
+         [("Coffee?", "Always."), ("Big idea?", "What if Echo ran a whole agency?"), ("Break's over?", "Five more minutes.")])
+    return feed
+
+
+def rundown():
+    """What Echo says when you click it: what's been done and what's needed."""
+    lines = ["👋 Here's the rundown:", ""]
+    rec_text = records_today()
+    lines.append(rec_text if not rec_text.startswith("Nothing") else "Nothing's been marked as done yet today.")
+    lines.append("")
+    lines.append(month_summary(short=True))
+    p = _safe(_pipeline, {}) or {}
+    if p:
+        lines.append(f"Sales pipeline: {len(p)} businesses, {sum(l['stage'] == 'won' for l in p.values())} won.")
+    try:
+        import echo_phone
+        needs = echo_phone.briefing()
+    except Exception:
+        needs = []
+    lines += ["", "What the team needs from you:"] + (["- " + n for n in needs] if needs else ["- Nothing right now 🎉"])
+    return "\n".join(lines)

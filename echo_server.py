@@ -426,6 +426,16 @@ def vision_install():
     return jsonify({"started": started, **echo_photos.pull_state})
 
 
+@app.route("/api/office", methods=["GET"])
+def office_feed():
+    return jsonify(echo_business.office_feed())
+
+
+@app.route("/api/office/rundown", methods=["GET"])
+def office_rundown():
+    return jsonify({"text": echo_business.rundown()})
+
+
 @app.route("/api/leads", methods=["GET"])
 def leads_latest():
     return jsonify(echo_leads.latest() or {})
