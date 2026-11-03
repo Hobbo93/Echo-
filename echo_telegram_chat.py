@@ -25,6 +25,7 @@ MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 
 import echo_voice
 import echo_photos
+import echo_roblox
 
 
 def telegram(method, params=None):
@@ -216,12 +217,27 @@ def handle_command(text):
             telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_photo"})
             send_photo(CHAT_ID, path, path.name)
         return True
+    if lower.startswith("/roblox") or ("roblox" in lower and echo_roblox.looks_like_build_request(text)):
+        request = text.split(None, 1)[1] if lower.startswith("/roblox") and len(text.split()) > 1 else text
+        if lower.strip() == "/roblox":
+            send(CHAT_ID, "Tell me what to build, e.g. /roblox a snowy obby with 20 stages, "
+                          "/roblox a big night city, /roblox a desert battle arena.")
+            return True
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        send(CHAT_ID, echo_roblox.describe(echo_roblox.build(request)))
+        return True
+    if lower.startswith("/maps"):
+        maps = echo_roblox.list_maps(10)
+        send(CHAT_ID, "Your Roblox maps:\n" + "\n".join(m.name for m in maps) if maps
+             else "No Roblox maps yet. Try /roblox a fun obby")
+        return True
     if lower.startswith(("/help", "/start")):
         send(CHAT_ID, "Echo here. You can:\n"
              "• text me or send a voice note\n"
              "• send a photo (add a caption to ask about it)\n"
              "• /screenshot - photo of your PC screen\n"
              "• /photos and /photo 1 - get saved photos back\n"
+             "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
              "• /callme - I ring your phone\n"
              "• /new - start a fresh chat")
         return True

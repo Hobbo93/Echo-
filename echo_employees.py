@@ -223,6 +223,22 @@ EMPLOYEES = {
             "13:00",
             "17:30"
         ]
+    ),
+
+    "employee_9": employee(
+        "Roblox Map Builder",
+        "Roblox Map Design and Building",
+        "Design Roblox maps: obbies, cities, battle arenas, forests and "
+        "islands, race tracks and houses. When asked to build a map, Echo's "
+        "map builder creates it and sends it to Roblox Studio. Otherwise help "
+        "plan game ideas, layouts and Luau scripts. Never publish a game or "
+        "spend Robux without approval.",
+        [
+            "Design obbies, cities, arenas, nature maps, race tracks and houses",
+            "Build maps straight into Roblox Studio with the Echo plugin",
+            "Save maps as .rbxmx models",
+            "Plan game ideas and write Luau scripts"
+        ]
     )
 }
 

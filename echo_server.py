@@ -11,6 +11,7 @@ import binascii
 import urllib.error
 from pathlib import Path
 import echo_photos
+import echo_roblox
 from flask import Flask, request, jsonify, send_file
 
 from echo_employees import (
@@ -283,6 +284,16 @@ def chat():
 
     try:
 
+        if (not images and employee_id == "employee_9"
+                and echo_roblox.looks_like_build_request(message)):
+            result = echo_roblox.build(message)
+            return jsonify({
+                "reply": echo_roblox.describe(result),
+                "employee_id": employee_id,
+                "employee": employee["name"],
+                "roblox": result
+            })
+
         if images:
             if not echo_photos.has_vision():
                 return jsonify({
@@ -351,6 +362,37 @@ def vision_status():
 def vision_install():
     started = echo_photos.pull_vision_in_background()
     return jsonify({"started": started, **echo_photos.pull_state})
+
+
+# ==========================================
+# ROBLOX MAP BUILDER (Studio plugin polls /api/roblox/next)
+# ==========================================
+
+@app.route("/api/roblox/next", methods=["GET"])
+def roblox_next():
+    job = echo_roblox.next_job()
+    if not job:
+        return ("", 204)
+    return jsonify(job)
+
+
+@app.route("/api/roblox/build", methods=["POST"])
+def roblox_build():
+    data = request.get_json(silent=True) or {}
+    prompt = str(data.get("prompt", "")).strip()[:500]
+    if not prompt:
+        return jsonify({"error": "Describe the map you want"}), 400
+    result = echo_roblox.build(prompt)
+    return jsonify({**result, "reply": echo_roblox.describe(result)})
+
+
+@app.route("/api/roblox/install-plugin", methods=["POST"])
+def roblox_install_plugin():
+    try:
+        path = echo_roblox.install_plugin()
+    except OSError as error:
+        return jsonify({"error": str(error)}), 500
+    return jsonify({"installed": str(path)})
 
 
 # ==========================================
