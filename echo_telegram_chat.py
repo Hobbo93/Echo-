@@ -10,11 +10,15 @@ import subprocess
 import tempfile
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 from pathlib import Path
 
-TOKEN = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
-CHAT_ID = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()
+from echo_telegram import chat_bot_credentials, _credentials
+
+TOKEN, CHAT_ID = chat_bot_credentials()
+HISTORY_TURNS = 8  # remembered back-and-forth exchanges
+history = []
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 PIPER_MODEL = os.getenv("ECHO_PIPER_MODEL", "").strip()
@@ -22,8 +26,15 @@ PIPER_MODEL = os.getenv("ECHO_PIPER_MODEL", "").strip()
 
 def telegram(method, params=None):
     url = "https://api.telegram.org/bot" + TOKEN + "/" + method
-    with urllib.request.urlopen(url, data=urllib.parse.urlencode(params or {}).encode(), timeout=45) as r:
-        data = json.load(r)
+    try:
+        with urllib.request.urlopen(url, data=urllib.parse.urlencode(params or {}).encode(), timeout=45) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.load(exc).get("description", "")
+        except ValueError:
+            detail = ""
+        raise RuntimeError(f"Telegram {method}: HTTP {exc.code} {detail}".strip()) from None
     if not data.get("ok"):
         raise RuntimeError(data.get("description", "Telegram API error"))
     return data["result"]
@@ -33,14 +44,28 @@ def send(chat_id, message):
     telegram("sendMessage", {"chat_id": chat_id, "text": message[:4000]})
 
 
+SYSTEM_PROMPT = ("You are Echo, a practical personal AI assistant. You may discuss plans, "
+                 "but cannot claim external actions were performed. Never execute trades, "
+                 "publish posts, spend money, or install updates without explicit approval.")
+
+
 def ask_echo(message):
-    payload = {"model": MODEL, "messages": [
-        {"role": "system", "content": "You are Echo, a practical personal AI assistant. You may discuss plans, but cannot claim external actions were performed. Never execute trades, publish posts, spend money, or install updates without explicit approval."},
-        {"role": "user", "content": message}], "stream": False}
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *history,
+                {"role": "user", "content": message}]
+    payload = {"model": MODEL, "messages": messages, "stream": False}
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        return json.load(r).get("message", {}).get("content", "No response received.")
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            reply = json.load(r).get("message", {}).get("content", "No response received.")
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {MODEL}") from None
+    except urllib.error.URLError:
+        raise RuntimeError("Cannot reach Ollama. Make sure the Ollama app is running.") from None
+    history.extend([{"role": "user", "content": message},
+                    {"role": "assistant", "content": reply}])
+    del history[:-HISTORY_TURNS * 2]
+    return reply
 
 
 def transcribe(file_id):
@@ -82,13 +107,13 @@ def send_voice(chat_id, text):
 
 def main():
     if not TOKEN:
-        raise SystemExit("Create a separate Telegram chat bot via BotFather and set ECHO_CHAT_TELEGRAM_TOKEN privately. The updater must use a different bot.")
+        raise SystemExit("Create a second Telegram bot via BotFather and add its token as "
+                         "\"chat_bot_token\" in .echo_telegram.json (see TELEGRAM_SETUP.md).")
     if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
-        raise SystemExit("Set numeric ECHO_CHAT_TELEGRAM_CHAT_ID before starting (private chat only).")
-    print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
-    if TOKEN == os.getenv("ECHO_TELEGRAM_TOKEN", "").strip():
+        raise SystemExit("Add your numeric \"chat_id\" to .echo_telegram.json (see TELEGRAM_SETUP.md).")
+    if TOKEN == _credentials()[0]:
         raise SystemExit("Chat and updater cannot share a Telegram bot token. Create a separate chat bot.")
-    print("Echo chat uses a separate Telegram bot to avoid updater polling conflicts.", flush=True)
+    print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
     updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
     offset = max((u["update_id"] for u in updates), default=-1) + 1
     while True:
@@ -108,6 +133,10 @@ def main():
                         text = transcribe(msg["voice"]["file_id"])
                     if not text or text.startswith("/start"):
                         send(CHAT_ID, "Echo connected. Send a text or voice note to chat.")
+                        continue
+                    if text.startswith("/new"):
+                        history.clear()
+                        send(CHAT_ID, "Started a fresh conversation.")
                         continue
                     reply = ask_echo(text)
                     send(CHAT_ID, reply)

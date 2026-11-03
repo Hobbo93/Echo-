@@ -9,27 +9,35 @@ from datetime import datetime, timezone
 # Stored next to this file so Echo works from any starting folder.
 TASK_FILE = Path(__file__).with_name("echo_tasks.json")
 
-EMPLOYEE_ROLES = {
-    "employee_1": "Content Creator",
-    "employee_2": "Trading Analyst",
-    "employee_3": "Shopify Manager",
-    "employee_4": "Website & Leads Manager"
-}
+from echo_employees import EMPLOYEES
+
+EMPLOYEE_ROLES = {key: value["name"] for key, value in EMPLOYEES.items()}
 
 
 def load_tasks():
     if not os.path.exists(TASK_FILE):
         return {}
 
-    with open(TASK_FILE, "r") as file:
-        return json.load(file)
+    try:
+        with open(TASK_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, ValueError):
+        # Keep the damaged file for inspection and start fresh.
+        damaged = TASK_FILE.with_suffix(".damaged.json")
+        try:
+            os.replace(TASK_FILE, damaged)
+            print("echo_tasks.json was damaged; moved to", damaged.name)
+        except OSError:
+            pass
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def save_tasks(tasks):
     # Write to a temp file first so a crash cannot leave half-written tasks.
     temp = TASK_FILE.with_suffix(".tmp")
-    with open(temp, "w") as file:
-        json.dump(tasks, file, indent=4)
+    with open(temp, "w", encoding="utf-8") as file:
+        json.dump(tasks, file, indent=2)
     os.replace(temp, TASK_FILE)
 
 

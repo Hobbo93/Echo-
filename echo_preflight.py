@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -13,7 +14,23 @@ MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_scheduler.py", "echo_telegram_approved_updater.py",
            "echo_telegram_chat.py", "echo_updater.py", "echo_telegram.py",
            "echo_content.py", "echo_automation.py",
-           "echo_leads.py", "echo_memory.py", "echo_approvals.py"]
+           "echo_leads.py", "echo_memory.py", "echo_approvals.py",
+           "echo_setup.py", "echo_start.py"]
+def check_ollama():
+    """Is Ollama running, and is Echo's model pulled?"""
+    model = os.getenv("ECHO_MODEL", "llama3.2")
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=5) as response:
+            names = [m.get("name", "") for m in json.load(response).get("models", [])]
+    except Exception:
+        return {"check": "ollama", "status": "error",
+                "detail": "Ollama is not running. Start the Ollama app, then try again."}
+    if not any(name == model or name.startswith(model + ":") for name in names):
+        return {"check": "ollama", "status": "error",
+                "detail": "Model missing. Run: ollama pull " + model}
+    return {"check": "ollama", "status": "ok", "detail": model}
+
+
 def check():
     results = []
     for filename in MODULES:
@@ -38,8 +55,13 @@ def check():
         # Windows has no built-in timezone data; Echo needs the tzdata package.
         results.append({"check": "timezone_data", "status": "error",
                         "detail": "Install with: py -m pip install -r requirements.txt"})
+    results.append(check_ollama())
+    try:
+        from echo_leads import API_KEY as places_key
+    except Exception:
+        places_key = ""
     results.append({"check": "google_places_key",
-                    "status": "configured" if os.getenv("GOOGLE_PLACES_API_KEY") else "missing",
+                    "status": "configured" if places_key else "missing",
                     "detail": "Only needed for echo_leads.py business research."})
     # Notifications accept env vars or ~/.echo_telegram.json (see TELEGRAM_SETUP.md).
     # The approval updater only reads env vars, so it is checked separately.
@@ -50,15 +72,17 @@ def check():
         notify_ok = False
     results.append({"check": "telegram_notifications",
                     "status": "configured" if notify_ok else "missing"})
-    results.append({"check": "telegram_token", "status": "configured" if os.getenv("ECHO_TELEGRAM_TOKEN") else "missing"})
-    chat = os.getenv("ECHO_TELEGRAM_CHAT_ID", "").strip()
+    try:
+        from echo_telegram import _credentials, chat_bot_credentials
+        updater_token, chat = _credentials()
+        chat_token, chat_id = chat_bot_credentials()
+    except Exception:
+        updater_token = chat = chat_token = chat_id = ""
+    results.append({"check": "telegram_token", "status": "configured" if updater_token else "missing"})
     results.append({"check": "telegram_chat_id",
                     "status": "configured" if chat.lstrip("-").isdigit() else "missing_or_invalid"})
     results.append({"check": "ffmpeg", "status": "ok" if shutil.which("ffmpeg") and shutil.which("ffprobe") else "missing",
                     "detail": "Only needed for echo_content.py video clips."})
-    updater_token = os.getenv("ECHO_TELEGRAM_TOKEN", "").strip()
-    chat_token = os.getenv("ECHO_CHAT_TELEGRAM_TOKEN", "").strip()
-    chat_id = os.getenv("ECHO_CHAT_TELEGRAM_CHAT_ID", "").strip()
     results.append({"check": "chat_bot_token", "status": "configured" if chat_token else "missing"})
     results.append({"check": "chat_bot_chat_id", "status": "configured" if chat_id.lstrip("-").isdigit() else "missing_or_invalid"})
     results.append({"check": "telegram_polling_conflict",

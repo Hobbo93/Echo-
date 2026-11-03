@@ -30,7 +30,20 @@ SEARCH_TERMS = [
     "handyman services in southern Adelaide",
 ]
 
-API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
+def _load_api_key():
+    """Env var first, then "google_places_key" in ~/.echo_telegram.json."""
+    key = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
+    if key:
+        return key
+    config = Path.home() / ".echo_telegram.json"
+    try:
+        return str(json.loads(config.read_text(encoding="utf-8-sig"))
+                   .get("google_places_key", "")).strip()
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+API_KEY = _load_api_key()
 
 FIELDS = ",".join([
     "places.id",
