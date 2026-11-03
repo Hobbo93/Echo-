@@ -287,6 +287,14 @@ def chat():
 
     try:
 
+        picture = None if images else echo_photos.picture_request(message)
+        if picture:
+            path = echo_photos.make_picture(picture)
+            return jsonify({
+                "reply": "Here you go: " + picture,
+                "image": "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode(),
+                "employee_id": employee_id, "employee": employee["name"]})
+
         if not images and employee_id == "employee_10":
             reply = echo_trading.handle(message)
             if reply:

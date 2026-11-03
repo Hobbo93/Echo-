@@ -18,15 +18,29 @@ def launch(title, script):
     if sys.platform == "win32":
         # A string (not a list) so the new cmd window sees "&" itself;
         # /k keeps the window open so any error stays readable.
-        command = f'cmd /k title {title} & "{sys.executable}" {script}'
+        command = f'cmd /k title {title} & "{sys.executable}" echo_keepalive.py {script}'
         subprocess.Popen(command, cwd=ROOT,
                          creationflags=subprocess.CREATE_NEW_CONSOLE)
     else:
-        subprocess.Popen([sys.executable, script], cwd=ROOT)
+        subprocess.Popen([sys.executable, "echo_keepalive.py", script], cwd=ROOT)
     print("Started:", title)
 
 
+def already_running():
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:5000/health", timeout=3):
+            return True
+    except Exception:
+        return False
+
+
 def main():
+    if already_running():
+        print("Echo is already running. Close its windows first if you want to restart it.")
+        if "--no-browser" not in sys.argv:
+            webbrowser.open("http://127.0.0.1:5000")
+        return
     ollama = check_ollama()
     if ollama["status"] != "ok":
         print("Warning:", ollama["detail"])
@@ -51,7 +65,8 @@ def main():
         print("Skipped phone calls: see PHONE_SETUP.md to let Echo ring you.")
 
     time.sleep(3)
-    webbrowser.open("http://127.0.0.1:5000")
+    if "--no-browser" not in sys.argv:
+        webbrowser.open("http://127.0.0.1:5000")
     print("\nEcho HQ is open in your browser: http://127.0.0.1:5000")
     print("Close an Echo window to stop that part.")
 

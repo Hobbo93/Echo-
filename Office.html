@@ -1296,7 +1296,7 @@ throw Error(data.error||("HTTP "+response.status));
 const reply=data.reply||data.response||
 "No response received.";
 
-addMessage(employee.name+": "+reply);
+addMessage(employee.name+": "+reply,false,data.image?[data.image]:[]);
 
 history.push(
 {role:"user",content:prompt},

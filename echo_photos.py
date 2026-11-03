@@ -219,4 +219,42 @@ def screenshot():
     return path
 
 
+# ==========================================
+# MAKING PICTURES (free, no key: Pollinations)
+# ==========================================
+
+PICTURE_WORDS = re.compile(r"\b(?:send|show|make|draw|create|generate|give)\b.{0,20}?\b(?:me\s+)?(?:a|an|some)?\s*"
+                           r"(?:picture|photo|pic|image|drawing|painting)s?\s+(?:of\s+)?(.+)", re.I)
+VIDEO_WORDS = re.compile(r"\b(?:send|show|make|create|generate)\b.{0,20}?\bvideos?\b", re.I)
+
+
+def picture_request(text):
+    """'send me a picture of a red car' -> 'a red car', else None."""
+    if text.lower().startswith(("/picture", "/draw", "/image")):
+        return text.split(None, 1)[1] if len(text.split()) > 1 else None
+    d = re.match(r"^\s*(?:can you |please |echo,? )?(?:draw|paint|sketch)\s+(?:me\s+)?(.+)", text, re.I)
+    if d:
+        return d.group(1).strip(" .!?")
+    m = PICTURE_WORDS.search(text)
+    if m and not SCREENSHOT_WORDS.search(text):
+        return m.group(1).strip(" .!?")
+    return None
+
+
+def make_picture(prompt):
+    """Create an image from a description; saved in Echo_photos. Returns the path."""
+    import urllib.parse
+    url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt[:400]) +
+           "?width=1024&height=1024&nologo=true&seed=" + str(int(time.time()) % 100000))
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Echo)"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            data = r.read(MAX_IMAGE_BYTES)
+    except Exception as exc:
+        raise RuntimeError("The picture service didn't answer (" + type(exc).__name__ + "). Try again in a minute.") from None
+    if not image_type(data):
+        raise RuntimeError("The picture service sent something that isn't an image. Try again.")
+    return save_photo(data, "made_for_you")
+
+
 SCREENSHOT_WORDS = re.compile(r"\b(screenshot|screen ?shot|show me (my|the) (screen|pc|computer))\b", re.I)

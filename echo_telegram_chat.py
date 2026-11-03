@@ -28,6 +28,7 @@ import echo_photos
 import echo_roblox
 import echo_leads
 import echo_trading
+import echo_personality
 
 
 def telegram(method, params=None):
@@ -64,7 +65,8 @@ VOICE_STYLE = (" The user sent a voice note and will hear your reply spoken alou
 
 
 def ask_echo(message, spoken=False):
-    system = SYSTEM_PROMPT + (VOICE_STYLE if spoken else "")
+    echo_personality.feel(message)
+    system = echo_personality.persona(spoken)
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
     payload = {"model": MODEL, "messages": messages, "stream": False}
@@ -181,6 +183,29 @@ def handle_command(text):
             send(CHAT_ID, "Got it.", NO_KEYBOARD)
         else:
             send(CHAT_ID, "There's no update waiting right now.")
+        return True
+    reply = echo_personality.remember(text) or echo_personality.set_name(text)
+    if reply:
+        send(CHAT_ID, reply)
+        return True
+    if lower.startswith("/mood"):
+        send(CHAT_ID, "I'm feeling " + echo_personality.MOODS[echo_personality.mood()] + " right now 🙂")
+        return True
+    picture = echo_photos.picture_request(text)
+    if picture:
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_photo"})
+
+        def make():
+            try:
+                path = echo_photos.make_picture(picture)
+                send_photo(CHAT_ID, path, "Here you go: " + picture[:200])
+            except Exception as exc:
+                send(CHAT_ID, "I couldn't make that picture: " + str(exc)[:200])
+        threading.Thread(target=make, daemon=True).start()
+        return True
+    if echo_photos.VIDEO_WORDS.search(text) and "clip" not in lower:
+        send(CHAT_ID, "I can't make videos yet, sorry! 😅 I can make you a picture instead: "
+                      "try \"send me a picture of ...\", or /screenshot to see your PC screen.")
         return True
     if lower.startswith("/getvision"):
         if echo_photos.has_vision():
@@ -300,6 +325,8 @@ def handle_command(text):
         send(CHAT_ID, "Echo here. You can:\n"
              "• text me or send a voice note\n"
              "• send a photo (add a caption to ask about it)\n"
+             "• send me a picture of ... - I make you an image\n"
+             "• remember that ... - I'll remember it about you\n"
              "• /screenshot - photo of your PC screen\n"
              "• /photos and /photo 1 - get saved photos back\n"
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"

@@ -47,6 +47,14 @@ SYSTEM_PROMPT = (
 calls = {}  # CallSid -> conversation history
 
 
+def _persona():
+    try:
+        import echo_personality
+        return echo_personality.persona(spoken=True)
+    except Exception:
+        return SYSTEM_PROMPT
+
+
 # ==========================================
 # SETTINGS
 # ==========================================
@@ -149,7 +157,7 @@ def call_me(message="Hi, it's Echo. What can I do for you?"):
 # ==========================================
 
 def ask_echo(history, message):
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *history,
+    messages = [{"role": "system", "content": _persona()}, *history,
                 {"role": "user", "content": message}]
     payload = {"model": MODEL, "messages": messages, "stream": False,
                "options": {"num_predict": 120}}  # short answers keep calls snappy
