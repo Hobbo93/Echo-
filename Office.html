@@ -249,7 +249,8 @@ const staff=[
 ["Technical Support","Echo Diagnostics and Maintenance"],
 ["Communications Assistant","Calls, Emails and Notifications"],
 ["Office Coordinator","Employee Coordination and Reporting"],
-["Roblox Map Builder","Roblox Map Design and Building"]
+["Roblox Map Builder","Roblox Map Design and Building"],
+["Day Trading Desk","Day Trading Analysis and Paper Trading"]
 ];
 
 const defaults=staff.map(([name,role],i)=>({
@@ -766,6 +767,24 @@ makePlantIn(g,hw-.35,hd-.45);
 const art=canvasTex(256,192,(cx)=>{const gr=cx.createLinearGradient(0,0,256,192);gr.addColorStop(0,hex);gr.addColorStop(1,"#1c2a3d");cx.fillStyle=gr;cx.fillRect(0,0,256,192);cx.fillStyle="rgba(255,255,255,.5)";cx.beginPath();cx.arc(90,80,40,0,7);cx.fill();});
 const ap=new THREE.Mesh(new THREE.PlaneGeometry(.9,.65),new THREE.MeshStandardMaterial({map:art}));ap.position.set(hw-.09,1.6,-.2);ap.rotation.y=-Math.PI/2;g.add(ap);
 box(.45,.7,.5,M(0x8d949b,{metalness:.5,roughness:.4}),hw-.32,.35,-hd+.35,g);
+if(/trading/i.test(r.name+" "+(r.role||""))){ // trading desk: wall of chart screens
+bs.visible=false;
+const chart=(up,seed)=>canvasTex(256,160,(cx)=>{cx.fillStyle="#0b1220";cx.fillRect(0,0,256,160);
+cx.strokeStyle="rgba(255,255,255,.07)";for(let y=20;y<160;y+=28){cx.beginPath();cx.moveTo(0,y);cx.lineTo(256,y);cx.stroke();}
+let p=80;for(let k=0;k<30;k++){const o=p;p+=(Math.sin(k*1.7+seed)*9)+(up?-1.2:1.2);const c=p;
+cx.fillStyle=c<o?"#26a69a":"#ef5350";cx.fillRect(8+k*8,Math.min(o,c),5,Math.max(2,Math.abs(c-o)));
+cx.fillRect(10+k*8,Math.min(o,c)-5,1,Math.abs(c-o)+10);}
+cx.fillStyle=up?"#26a69a":"#ef5350";cx.font="bold 14px Arial";cx.fillText(up?"▲ +1.8%":"▼ -0.6%",180,18);});
+[[-.62,1.35,-1.62,true],[0,1.35,-1.62,false],[.62,1.35,-1.62,true],[-.62,1.75,-1.62,false],[0,1.75,-1.62,true],[.62,1.75,-1.62,true]].forEach(([x,y,z,up],k)=>{
+box(.6,.38,.03,M(0x111111,{roughness:.3}),x,y,z+.02,g);
+const t=chart(up,k*2.3);const sm=new THREE.Mesh(new THREE.PlaneGeometry(.56,.34),new THREE.MeshStandardMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:.7}));
+sm.position.set(x,y,z+.04);g.add(sm);});
+box(1.9,.06,.06,M(0x333333,{metalness:.6}),0,1.12,-1.62,g);
+const tick=canvasTex(1024,64,(cx)=>{cx.fillStyle="#000";cx.fillRect(0,0,1024,64);cx.font="bold 30px Arial";
+["BHP ▲0.8%","CBA ▼0.3%","BTC ▲2.1%","ASX200 ▲0.4%","AUD ▼0.1%","GOLD ▲0.6%"].forEach((s,k)=>{cx.fillStyle=s.includes("▲")?"#26a69a":"#ef5350";cx.fillText(s,10+k*170,44);});});
+const tk=new THREE.Mesh(new THREE.PlaneGeometry(3.3,.2),new THREE.MeshStandardMaterial({map:tick,emissive:0xffffff,emissiveMap:tick,emissiveIntensity:.8}));
+tk.position.set(0,2.35,-1.68);g.add(tk);
+}
 if(/roblox/i.test(r.name+" "+(r.role||""))){ // block-world models on the desk and shelf
 [[0xe53935,-.3,.79,-.3],[0x1e88e5,-.18,.79,-.3],[0x43a047,-.24,.89,-.3],[0xfdd835,.25,.79,-.25]].forEach(([c,x,y,z])=>box(.1,.1,.1,M(c,{roughness:.4}),x,y,z,g));
 const fig=new THREE.Group();box(.12,.12,.12,M(0xffd54f),0,.36,0,fig);box(.16,.16,.08,M(0x1e88e5),0,.22,0,fig);box(.07,.14,.07,M(0x388e3c),-.04,.07,0,fig);box(.07,.14,.07,M(0x388e3c),.04,.07,0,fig);

@@ -240,6 +240,24 @@ EMPLOYEES = {
             "Save maps as .rbxmx models",
             "Plan game ideas and write Luau scripts"
         ]
+    ),
+
+    "employee_10": employee(
+        "Day Trading Desk",
+        "Day Trading Analysis and Paper Trading",
+        "Analyse shares and crypto for day and swing trades: trend, "
+        "momentum, support and resistance, and a risk plan with a stop-loss "
+        "and position size risking about 1% of the account. Be honest: no "
+        "strategy wins every trade, so never promise profits or certainty. "
+        "Track ideas with paper trades and report the real win rate. Never "
+        "place real trades or move money; the user does that themselves. "
+        "This is education, not financial advice.",
+        [
+            "Chart analysis (trend, RSI, ATR, support/resistance)",
+            "Risk plans: stop-loss, target and position size",
+            "Paper trading journal with honest win rate",
+            "Market research and watchlists"
+        ]
     )
 }
 

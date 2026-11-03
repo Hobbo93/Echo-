@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from echo_tasks import EMPLOYEE_ROLES, load_tasks, save_tasks
 from echo_telegram import send_report, send_alert, send_message
 import echo_leads
+import echo_trading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -163,6 +164,21 @@ def format_leads(result):
     return "\n".join(lines)
 
 
+def run_trade_scan(schedule):
+    """Each evening, text the best trade idea; nothing is placed unless you tap Place trade."""
+    date = today()
+    if current_time().strftime("%H:%M") < echo_trading.SCAN_TIME or schedule.get("last_trade_scan") == date:
+        return
+    if current_time().weekday() >= 5:  # US market closed weekends (Sat/Sun evenings in Adelaide)
+        return
+    schedule["last_trade_scan"] = date
+    save_schedule(schedule)
+    try:
+        print("Trade scan:", echo_trading.send_idea_to_phone()[:120])
+    except Exception as exc:
+        print("Trade scan failed:", exc)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -245,6 +261,7 @@ def run_daily_schedule():
             print(f"Marked {expired} old unreviewed tasks as expired.")
 
     run_lead_research(schedule)
+    run_trade_scan(schedule)
 
     now = current_time().strftime("%H:%M")
 

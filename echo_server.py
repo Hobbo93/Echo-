@@ -13,6 +13,7 @@ from pathlib import Path
 import echo_photos
 import echo_roblox
 import echo_leads
+import echo_trading
 import threading
 from flask import Flask, request, jsonify, send_file
 
@@ -285,6 +286,12 @@ def chat():
         )
 
     try:
+
+        if not images and employee_id == "employee_10":
+            reply = echo_trading.handle(message)
+            if reply:
+                return jsonify({"reply": reply, "employee_id": employee_id,
+                                "employee": employee["name"]})
 
         if (not images and employee_id == "employee_4"
                 and echo_leads.looks_like_leads_request(message)):

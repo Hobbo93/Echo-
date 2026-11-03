@@ -14,6 +14,8 @@ FIELDS = [
     ("chat_id", "Your numeric chat ID, from @userinfobot"),
     ("chat_bot_token", "Second bot token for chatting with Echo (optional)"),
     ("google_places_key", "Google Places API key for finding leads (optional, see LEADS_SETUP.md)"),
+    ("alpaca_key_id", "Alpaca API key ID for the Day Trading Desk (optional, see TRADING_SETUP.md)"),
+    ("alpaca_secret_key", "Alpaca secret key (optional)"),
 ]
 
 PHONE_FIELDS = [

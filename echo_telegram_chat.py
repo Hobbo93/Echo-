@@ -27,6 +27,7 @@ import echo_voice
 import echo_photos
 import echo_roblox
 import echo_leads
+import echo_trading
 
 
 def telegram(method, params=None):
@@ -227,6 +228,34 @@ def handle_command(text):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         send(CHAT_ID, echo_roblox.describe(echo_roblox.build(request)))
         return True
+    if "place trade" in lower or "skip trade" in lower or (
+            echo_trading.pending() and not PENDING_FILE.exists() and yes_no(text)):
+        if "skip" in lower or yes_no(text) == "no":
+            send(CHAT_ID, echo_trading.skip(), NO_KEYBOARD)
+            return True
+        send(CHAT_ID, "Placing the trade…", NO_KEYBOARD)
+
+        def place():
+            try:
+                msg, png = echo_trading.approve()
+                if png:
+                    path = Path(tempfile.gettempdir()) / "echo_trade.png"
+                    path.write_bytes(png)
+                    _upload("sendPhoto", "photo", CHAT_ID, path, "image/png", "Your trade: blue = entry, "
+                            "red = stop-loss, green = target")
+                send(CHAT_ID, msg)
+            except Exception as exc:
+                send(CHAT_ID, "The trade was NOT placed: " + str(exc)[:300])
+        threading.Thread(target=place, daemon=True).start()
+        return True
+    if lower.startswith("/trade propose") or lower.startswith("/trade idea"):
+        send(CHAT_ID, "Scanning the watchlist for the best setup…")
+        threading.Thread(target=lambda: _safe(echo_trading.send_idea_to_phone), daemon=True).start()
+        return True
+    if lower.startswith("/trade") or lower.startswith("paper "):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        send(CHAT_ID, echo_trading.handle(text) or echo_trading.handle("/trade"))
+        return True
     if lower.startswith(("/leads", "/findleads")):
         fresh = lower.startswith("/findleads") or "new" in lower
         result = None if fresh else echo_leads.latest()
@@ -260,6 +289,8 @@ def handle_command(text):
              "• /photos and /photo 1 - get saved photos back\n"
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
              "• /leads - today's 20 businesses (/findleads gets new ones)\n"
+             "• /trade analyse BHP.AX - chart read + risk plan\n"
+             "• /trade propose - best trade idea with a chart; tap Place trade to approve\n"
              "• /callme - I ring your phone\n"
              "• /new - start a fresh chat")
         return True
@@ -267,6 +298,13 @@ def handle_command(text):
 
 
 shared = False
+
+
+def _safe(fn):
+    try:
+        fn()
+    except Exception as exc:
+        send(CHAT_ID, "Echo trading desk problem: " + str(exc)[:300])
 
 
 def main():
