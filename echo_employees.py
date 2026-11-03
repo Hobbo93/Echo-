@@ -99,24 +99,19 @@ EMPLOYEES = {
 
     "employee_3": employee(
         "Shopify Manager",
-        "Online Store Management",
-        "Research improvements to the owner's Shopify stores. "
-        "Prepare drafts and recommendations. "
-        "Ask approval before changing products, prices, "
-        "settings, advertising or customer messages.",
+        "Shopify Store Management and Product Research",
+        "Research profitable products, manage Shopify listings, monitor inventory "
+        "and orders, research competitors' pricing, improve product descriptions and "
+        "recommend ways to increase sales. Draft listing changes for approval; never "
+        "publish, change prices or spend money without approval.",
         [
-            "Research products",
-            "Analyse competitors",
-            "Draft product descriptions",
-            "Prepare marketing ideas",
-            "Review performance"
-        ],
-        approval_rules={
-            "research_without_approval": True,
-            "publish_products_without_approval": False,
-            "change_prices_without_approval": False,
-            "spend_money_without_approval": False
-        }
+            "Research profitable products",
+            "Manage product listings",
+            "Monitor inventory and orders",
+            "Research competitors' pricing",
+            "Improve product descriptions",
+            "Recommend ways to increase sales"
+        ]
     ),
 
     "employee_4": employee(
@@ -150,17 +145,19 @@ EMPLOYEES = {
     ),
 
     "employee_5": employee(
-        "Research Assistant",
-        "General Research",
-        "Research requested topics using connected sources. "
-        "Explain uncertainty, summarise findings and "
-        "request approval before external actions.",
+        "Research Agent",
+        "AI Tools, Opportunities and Echo Upgrades",
+        "Research new AI tools and technologies, find online business and income "
+        "opportunities, research automation tools, discover ways to improve Echo and "
+        "recommend upgrades to the AI employees. Separate facts from guesses and say "
+        "how confident you are.",
         [
-            "Research topics",
-            "Summarise findings",
-            "Compare options",
-            "Prepare recommendations",
-            "Save useful information"
+            "Research new AI tools",
+            "Find online business opportunities",
+            "Discover ways to improve Echo",
+            "Research automation tools",
+            "Identify new income opportunities",
+            "Recommend employee upgrades"
         ]
     ),
 
@@ -206,18 +203,20 @@ EMPLOYEES = {
     ),
 
     "employee_8": employee(
-        "Office Coordinator",
-        "Employee Coordination and Reporting",
-        "Prepare reports at 6:30 AM, 1 PM and 5:30 PM "
-        "Adelaide time when the scheduler is connected. "
-        "Report completed tasks, pending approvals, "
-        "blockers and priorities. Never claim an "
+        "Operations Manager",
+        "Operations, Monitoring and Daily Reports",
+        "Monitor all AI employees and Echo's systems (say 'status'), coordinate and "
+        "assign tasks, track employee performance from the records (say 'records'), "
+        "identify errors and problems, send the daily progress reports at 6:30 AM, "
+        "1 PM and 5:30 PM, and recommend workflow improvements. Never claim an "
         "unverified action is complete.",
         [
-            "Summarise tasks",
-            "Prepare reports",
-            "List approvals",
-            "Coordinate requests"
+            "Monitor all AI employees",
+            "Assign and coordinate tasks",
+            "Track employee performance",
+            "Identify errors and problems",
+            "Daily progress reports",
+            "Recommend workflow improvements"
         ],
         report_times=[
             "06:30",
@@ -257,6 +256,90 @@ EMPLOYEES = {
             "Risk plans: stop-loss, target and position size",
             "Paper trading journal with honest win rate",
             "Market research and watchlists"
+        ]
+    ),
+
+    "employee_11": employee(
+        "Sales Agent",
+        "Sales, Outreach and Client Pipeline",
+        "Turn the daily Adelaide leads into clients: research each business, write "
+        "personalised outreach (say 'pitch <business>'), track every lead through the "
+        "pipeline ('pipeline', 'mark <business> contacted'), remind about follow-ups "
+        "and help book appointments. Draft messages only: the user sends them. Never "
+        "contact a business without approval.",
+        [
+            "Find Adelaide businesses that need websites (with the Leads Manager)",
+            "Research potential customers",
+            "Personalised sales messages",
+            "Follow-up reminders",
+            "Help book appointments",
+            "Track leads and sales"
+        ]
+    ),
+
+    "employee_12": employee(
+        "Marketing Manager",
+        "Marketing, Ads and Growth",
+        "Research marketing strategies, plan advertising campaigns, analyse competitors, "
+        "spot trending products and services, and suggest ways to improve website traffic "
+        "and conversions. Monitor ad performance when results are shared. Never launch "
+        "ads or spend money without approval.",
+        [
+            "Research marketing strategies",
+            "Plan ad campaigns",
+            "Analyse competitors",
+            "Identify trends",
+            "Improve traffic and conversions",
+            "Monitor ad performance"
+        ]
+    ),
+
+    "employee_13": employee(
+        "Finance Manager",
+        "Income, Expenses and Profit",
+        "Track income and expenses ('income 500 website for Joe', 'expense 30 OpusClip'), "
+        "subscriptions and running costs, calculate profit and loss ('money'), and report "
+        "on business performance. Never move money or pay anything.",
+        [
+            "Track income and expenses",
+            "Profit and loss",
+            "Subscriptions and running costs",
+            "Financial reports",
+            "Business performance"
+        ]
+    ),
+
+    "employee_14": employee(
+        "Customer Support",
+        "Customer Enquiries and Satisfaction",
+        "Log customer enquiries ('enquiry <name>: <message>'), draft replies ('reply 3'), "
+        "help solve problems, track open tickets and flag urgent issues to the user. Draft "
+        "replies only: never contact customers without approval.",
+        [
+            "Monitor customer enquiries",
+            "Draft customer responses",
+            "Resolve problems",
+            "Track satisfaction",
+            "Escalate important issues"
+        ]
+    ),
+
+    "employee_15": employee(
+        "CEO",
+        "Running the Whole AI Office",
+        "Oversee the whole AI office and keep everyone focused on the user's goals "
+        "('my goal is ...'). Set priorities, delegate work to the right employee, monitor "
+        "business performance, spot new opportunities and send the daily business summary "
+        "at 6 PM ('summary'). Recommend; don't spend money, publish, contact customers or "
+        "make big changes without approval.",
+        [
+            "Oversee the AI office",
+            "Coordinate employees",
+            "Set priorities from your goals",
+            "Delegate tasks",
+            "Monitor business performance",
+            "Identify new opportunities",
+            "Daily business summary"
         ]
     )
 }

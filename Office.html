@@ -249,14 +249,19 @@ const STORAGE="echo_office_v1";
 const staff=[
 ["Content Creator","Video Editing & Social Media Manager"],
 ["Trading Analyst","Market Research and Trading Analysis"],
-["Shopify Manager","Online Store Management"],
+["Shopify Manager","Shopify Store Management and Product Research"],
 ["Website and Leads Manager","Adelaide Business Research"],
-["Research Assistant","General Research"],
+["Research Agent","AI Tools, Opportunities and Echo Upgrades"],
 ["Technical Support","Echo Diagnostics and Maintenance"],
 ["Communications Assistant","Calls, Emails and Notifications"],
-["Office Coordinator","Employee Coordination and Reporting"],
+["Operations Manager","Operations, Monitoring and Daily Reports"],
 ["Roblox Map Builder","Roblox Map Design and Building"],
-["Day Trading Desk","Day Trading Analysis and Paper Trading"]
+["Day Trading Desk","Day Trading Analysis and Paper Trading"],
+["Sales Agent","Sales, Outreach and Client Pipeline"],
+["Marketing Manager","Marketing, Ads and Growth"],
+["Finance Manager","Income, Expenses and Profit"],
+["Customer Support","Customer Enquiries and Satisfaction"],
+["CEO","Running the Whole AI Office"]
 ];
 
 const defaults=staff.map(([name,role],i)=>({
@@ -283,6 +288,10 @@ const d=defaults[r.id-1];
 return d&&r.name==="Employee "+r.id&&r.role==="Unassigned"
 &&!r.instructions?{...d,model:r.model||d.model}:r;
 });
+
+// Renamed staff keep their office.
+const RENAMED={"Research Assistant":"Research Agent","Office Coordinator":"Operations Manager"};
+rooms=rooms.map(r=>{const n=RENAMED[r.name];if(!n)return r;const d=defaults.find(x=>x.name===n);return{...r,name:n,role:d.role};});
 
 // New staff join existing offices once (without undoing your own edits).
 try{
@@ -773,6 +782,12 @@ makePlantIn(g,hw-.35,hd-.45);
 const art=canvasTex(256,192,(cx)=>{const gr=cx.createLinearGradient(0,0,256,192);gr.addColorStop(0,hex);gr.addColorStop(1,"#1c2a3d");cx.fillStyle=gr;cx.fillRect(0,0,256,192);cx.fillStyle="rgba(255,255,255,.5)";cx.beginPath();cx.arc(90,80,40,0,7);cx.fill();});
 const ap=new THREE.Mesh(new THREE.PlaneGeometry(.9,.65),new THREE.MeshStandardMaterial({map:art}));ap.position.set(hw-.09,1.6,-.2);ap.rotation.y=-Math.PI/2;g.add(ap);
 box(.45,.7,.5,M(0x8d949b,{metalness:.5,roughness:.4}),hw-.32,.35,-hd+.35,g);
+if(r.name==="CEO"){ // corner-office touches: gold trim, globe, award shelf
+box(OFF_W,.12,.03,M(0xd4af37,{metalness:.8,roughness:.25}),0,1.95,-hd+.12,g);
+const gl=new THREE.Mesh(new THREE.SphereGeometry(.13,20,16),M(0x2f6fd6,{roughness:.4}));gl.position.set(-.55,.95,-.75);g.add(gl);
+cyl(.05,.07,.06,M(0xd4af37,{metalness:.8}),-.55,.79,-.75,g,12);
+[0,1,2].forEach(k=>cyl(.04,.05,.18,M(0xd4af37,{metalness:.8,roughness:.2}),-1.3+k*.18,1.99,-hd+.3,g,10));
+}
 if(/trading/i.test(r.name+" "+(r.role||""))){ // trading desk: wall of chart screens
 bs.visible=false;
 const chart=(up,seed)=>canvasTex(256,160,(cx)=>{cx.fillStyle="#0b1220";cx.fillRect(0,0,256,160);
@@ -1450,13 +1465,18 @@ return text
 const INTROS={
 "Content Creator":"Hey, I'm your Content Creator. I find trending ideas, plan videos and clips, and write captions and hashtags. With OpusClip connected I can clip your Twitch streams and long videos into Shorts. Send me a video link and tell me where to post.",
 "Trading Analyst":"Hi, Trading Analyst here. I research markets and explain what's moving. For trade ideas with charts, head over to the Day Trading Desk.",
-"Shopify Manager":"Hey, I'm your Shopify Manager. I can help plan products, descriptions and store updates. Tell me what you want to sell.",
+"Shopify Manager":"Hey, Shopify Manager here. I research profitable products, write descriptions, check competitors' prices and find ways to grow sales. To manage your real store I'll need a Shopify connection, so for now tell me what you sell and I'll get planning.",
 "Website and Leads Manager":"Hi, I'm the Website and Leads Manager. Every day at 3 PM I find 20 local businesses that need a website, with phones, emails and photos, ready to build in Base44. I just need your Google Places key to start. Ask me for your leads.",
-"Research Assistant":"Hey, Research Assistant here. Ask me anything you want looked into and I'll dig in.",
+"Research Agent":"Hey, Research Agent here. I hunt for new AI tools, income opportunities and ways to upgrade Echo. Ask me to look into anything.",
 "Technical Support":"Hi, I'm Technical Support. If anything in Echo breaks or looks wrong, tell me what happened and I'll help sort it.",
 "Communications Assistant":"Hey, Communications here. I draft your messages and emails, and once your phone line is set up I can ring you.",
-"Office Coordinator":"Hi, I'm the Office Coordinator. I keep track of everyone's tasks and send your reports at 6:30, 1 and 5:30. Ask me what's going on.",
+"Operations Manager":"Hi, Operations Manager. I keep an eye on every employee and every part of Echo, and send your reports at 6:30, 1 and 5:30. Say status to check everything's running, or records to see what got done today.",
 "Roblox Map Builder":"Hey! Roblox Map Builder here. Tell me what to build, like a snowy obby with 20 stages or a big night city, and I'll build it straight into Roblox Studio.",
+"Sales Agent":"Hey! Sales Agent here. I turn the daily leads into clients. Say pipeline to see everyone, pitch and a business name for a personalised message, and mark them contacted or won as you go. I'll remind you about follow-ups. I draft, you send.",
+"Marketing Manager":"Hi, Marketing Manager. I plan ad campaigns, check out competitors, spot trends and find ways to get more traffic and sales. I never spend on ads without your OK. What are we promoting?",
+"Finance Manager":"Hi, Finance Manager here. Tell me income five hundred website for Joe, or expense thirty OpusClip, and I'll keep the books. Say money for this month's profit.",
+"Customer Support":"Hey, Customer Support. Tell me enquiry, a name, and their message, and I'll log it and draft a reply. Urgent ones get flagged to you straight away.",
+"CEO":"Hi Tailen, I'm the CEO. I keep the whole office pointed at your goals. Tell me my goal is, and what you want, and I'll set priorities and delegate. Every evening at six I send you the business summary. Say summary any time.",
 "Day Trading Desk":"Hi, Day Trading Desk. I scan the market every weekday evening and tell you up, down or wait, with a chart. Say market, scan, or analyse a stock. I only place a trade when you approve it."
 };
 

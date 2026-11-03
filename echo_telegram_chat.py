@@ -5,6 +5,7 @@ Telegram bots can't take live calls; /callme rings your phone if Echo's
 phone line is set up (see PHONE_SETUP.md).
 """
 import json
+import re
 import os
 import tempfile
 import threading
@@ -29,6 +30,7 @@ import echo_roblox
 import echo_leads
 import echo_trading
 import echo_personality
+import echo_business
 
 
 def telegram(method, params=None):
@@ -184,6 +186,17 @@ def handle_command(text):
         else:
             send(CHAT_ID, "There's no update waiting right now.")
         return True
+    cmd = {"/pipeline": "pipeline", "/money": "money", "/ceo": "summary", "/summary": "summary",
+           "/status": "status", "/records": "records", "/tickets": "tickets", "/goals": "goals",
+           "/followups": "follow ups", "/subscriptions": "subscriptions"}.get(lower.split()[0] if lower else "")
+    office = echo_business.handle(None, cmd or text) if (cmd or re.match(
+        r"^(pipeline|pitch |mark .+ (new|contacted|follow ?up|meeting|won|lost)$|follow ?ups|income |expense |"
+        r"subscription |subscriptions|enquiry .+:|tickets|reply #?\d|close #?\d|my goal is|goals$|status$|records$)", lower)) else None
+    if office:
+        if cmd == "summary" or lower.startswith("pitch") or lower.startswith("reply"):
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        send(CHAT_ID, office)
+        return True
     reply = echo_personality.remember(text) or echo_personality.set_name(text)
     if reply:
         send(CHAT_ID, reply)
@@ -334,6 +347,10 @@ def handle_command(text):
              "• /trade analyse BHP.AX - chart read + risk plan\n"
              "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
              "• /trade propose - best trade idea with a chart; tap Place trade to approve\n"
+             "• /ceo - today's business summary · /status - is Echo running?\n"
+             "• /pipeline · pitch <business> · mark <business> won\n"
+             "• /money · income 500 website for Joe · expense 30 OpusClip\n"
+             "• enquiry <name>: <message> · /tickets · my goal is ...\n"
              "• /callme - I ring your phone\n"
              "• /new - start a fresh chat")
         return True
@@ -368,6 +385,7 @@ def main():
     offset = max((u["update_id"] for u in updates), default=-1) + 1
     while True:
         try:
+            echo_business.heartbeat("telegram")
             for update in telegram("getUpdates", {"offset": offset, "timeout": 25}):
                 offset = max(offset, update["update_id"] + 1)
                 msg = update.get("message") or {}

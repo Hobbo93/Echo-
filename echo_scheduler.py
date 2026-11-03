@@ -15,6 +15,7 @@ from echo_tasks import EMPLOYEE_ROLES, load_tasks, save_tasks
 from echo_telegram import send_report, send_alert, send_message
 import echo_leads
 import echo_trading
+import echo_business
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -194,6 +195,34 @@ def run_trench_watch():
         print("Trench watch failed:", exc)
 
 
+CEO_TIME = "18:00"
+
+
+def run_ceo_summary(schedule):
+    """6 PM: the CEO's daily business summary to your phone."""
+    date = today()
+    if current_time().strftime("%H:%M") < CEO_TIME or schedule.get("last_ceo") == date:
+        return
+    schedule["last_ceo"] = date
+    save_schedule(schedule)
+    try:
+        send_message(echo_business.ceo_summary())
+    except Exception as exc:
+        print("CEO summary failed:", exc)
+
+
+def run_ops_check(schedule):
+    """Operations Manager: alert once a day if a part of Echo has gone quiet."""
+    echo_business.heartbeat("scheduler")
+    status = echo_business.status_text()
+    problems = [l for l in status.splitlines() if l.startswith("🔴")]
+    key = "last_ops_alert"
+    if problems and schedule.get(key) != today():
+        schedule[key] = today()
+        save_schedule(schedule)
+        send_alert("Operations Manager: something needs attention\n" + "\n".join(problems))
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -278,6 +307,8 @@ def run_daily_schedule():
     run_lead_research(schedule)
     run_trade_scan(schedule)
     run_trench_watch()
+    run_ceo_summary(schedule)
+    run_ops_check(schedule)
 
     now = current_time().strftime("%H:%M")
 

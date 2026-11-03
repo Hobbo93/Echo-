@@ -14,6 +14,8 @@ import echo_photos
 import echo_roblox
 import echo_leads
 import echo_trading
+import echo_business
+import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
 
@@ -76,7 +78,8 @@ def ask_ollama(message, employee, history=()):
         "actually completed it. "
         "You cannot independently execute "
         "trades, publish posts, spend money "
-        "or contact businesses."
+        "or contact businesses. "
+        + echo_business.OFFICE_RULES
     )
 
     payload = {
@@ -137,6 +140,19 @@ def office():
 # ==========================================
 # SERVER HEALTH
 # ==========================================
+
+_last_beat = [0.0]
+
+
+@app.before_request
+def _beat():
+    if _time.time() - _last_beat[0] > 60:
+        _last_beat[0] = _time.time()
+        try:
+            echo_business.heartbeat("server")
+        except OSError:
+            pass
+
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -241,6 +257,14 @@ def chat():
     # Support the existing 3D office interface,
     # which sends an employee name and role.
 
+    # Match by name first: office numbers can differ from Echo's employee numbers.
+    if isinstance(employee_data, dict) and employee_data.get("name"):
+        wanted = str(employee_data.get("name", "")).strip().lower()
+        for key, employee in EMPLOYEES.items():
+            if employee["name"].lower() == wanted:
+                employee_id = key
+                break
+
     if employee_id not in EMPLOYEES and isinstance(
         employee_data, dict
     ):
@@ -294,6 +318,12 @@ def chat():
                 "reply": "Here you go: " + picture,
                 "image": "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode(),
                 "employee_id": employee_id, "employee": employee["name"]})
+
+        if not images:
+            office_reply = echo_business.handle(EMPLOYEES[employee_id]["name"], message)
+            if office_reply:
+                return jsonify({"reply": office_reply, "employee_id": employee_id,
+                                "employee": employee["name"]})
 
         if not images and employee_id == "employee_10":
             reply = echo_trading.handle(message)
