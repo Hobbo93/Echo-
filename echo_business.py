@@ -576,10 +576,17 @@ def office_feed():
           ("Any bills coming up?", f"{subs} subscriptions to watch." if subs else "I don't know any yet, need Tailen to tell me.")])
 
     # Shopify
-    dept("shopify", ["Researching profitable products and pricing"],
-         ["Needs a Shopify connection to manage the real store"],
-         [("Any winning products?", "A few trending ones, need Tailen's pick."),
-          ("Prices competitive?", "I'm checking competitors now.")])
+    sh = _safe(lambda: __import__("echo_shopify"))
+    connected = bool(sh and _safe(sh.is_configured, False))
+    sp = _safe(sh.pending) if sh else None
+    changes = _safe(lambda: sh.recent_changes(3), []) if sh else []
+    dept("shopify",
+         ([c["result"].splitlines()[0].replace("✅ ", "Done: ") for c in changes] or ["Connected to Furventure, ready for jobs"])
+         if connected else ["Waiting to be connected to the store"],
+         ([f"Waiting for your Yes: {sh.describe(sp).splitlines()[0]}" if sp else ""] if connected else
+          ["Not connected to Shopify yet: double-click connect_echo.bat (SHOPIFY_SETUP.md)"]),
+         [("Store connected?", "Yes, I can add and change products." if connected else "Not yet, I can only talk until Tailen connects me."),
+          ("Anything to change?", "Waiting on Tailen's Yes." if sp else "Tell me what to add or update.")])
 
     # Trading
     tr = _safe(lambda: __import__("echo_trading"))
@@ -588,7 +595,9 @@ def office_feed():
     tst = _safe(lambda: tr.trench_stats(), "") if tr else ""
     dept("trading",
          [f"Watching {len(opens)} open Trench trades" if opens else "Scanning the market every weekday at 7:30 PM", tst],
-         [f"Trade idea waiting for approval: {pend['symbol']}" if pend else ""],
+         [f"Trade idea waiting for approval: {pend['symbol']}" if pend else "",
+          "" if _safe(lambda: __import__("echo_broker").is_configured(), False) else
+          "Practice account only: connect Alpaca (connect_echo.bat) for real trades"],
          [("What's the market doing?", "Mostly WAIT right now. No clean setups." if not pend else f"{pend['symbol']} looks good, sent it to Tailen."),
           ("Should we trade?", "Only with Tailen's yes. And only good setups."),
           ("Win rate?", tst or "No closed trades yet, we're being patient.")])

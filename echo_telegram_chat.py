@@ -29,6 +29,9 @@ import echo_photos
 import echo_roblox
 import echo_leads
 import echo_trading
+import echo_shopify
+import echo_email
+import echo_connections
 import echo_personality
 import echo_business
 
@@ -173,6 +176,12 @@ def handle_photo(msg):
     path = echo_photos.save_photo(data, "from_you")
     last_photo.update(data=data, path=path, time=time.time())
     question = (msg.get("caption") or "").strip()
+    if question and re.search(r"\b(shopify|store|shop|listing|product)\b", question, re.I):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        reply = echo_shopify.handle(question, images=[path], force=True)
+        if reply and "sent this to your phone" not in reply:
+            send(CHAT_ID, reply)
+        return
     if not echo_photos.has_vision():
         send(CHAT_ID, "Saved your photo as " + path.name + ".\n\n" + echo_photos.need_vision_message())
         return
@@ -194,6 +203,52 @@ def handle_command(text):
             send(CHAT_ID, "Installing the update…" if choice == "yes" else "OK, skipping that update.",
                  NO_KEYBOARD)
             return True
+    if echo_email.pending() and yes_no(text) and not echo_shopify.pending() and not echo_trading.pending():
+        if yes_no(text) == "no":
+            send(CHAT_ID, echo_email.skip(), NO_KEYBOARD)
+            return True
+        try:
+            send(CHAT_ID, echo_email.approve(), NO_KEYBOARD)
+        except Exception as exc:
+            send(CHAT_ID, "The email was NOT sent: " + str(exc)[:300], NO_KEYBOARD)
+        return True
+    if echo_email.EMAIL_RE.match(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def mail():
+            reply = echo_email.handle(text)
+            if reply and "Sent to your phone" not in reply:
+                send(CHAT_ID, reply)
+        threading.Thread(target=mail, daemon=True).start()
+        return True
+    if echo_shopify.pending() and yes_no(text) and not echo_trading.pending():
+        if yes_no(text) == "no":
+            send(CHAT_ID, echo_shopify.skip(), NO_KEYBOARD)
+            return True
+        send(CHAT_ID, "On it, updating the store…", NO_KEYBOARD)
+
+        def do_store():
+            try:
+                send(CHAT_ID, echo_shopify.approve())
+            except Exception as exc:
+                send(CHAT_ID, "The store change did NOT go through: " + str(exc)[:300])
+        threading.Thread(target=do_store, daemon=True).start()
+        return True
+    if lower.startswith("/connections") or re.search(r"\bwhat(?:'s| is) connected\b|\bconnections?\b.*\b(status|check)\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        send(CHAT_ID, echo_connections.summary())
+        return True
+    if lower.startswith(("/shop", "/products", "/orders")) or (
+            re.search(r"\b(shopify|my store|the store|furventure)\b", lower) and echo_shopify.STORE_WORDS.search(lower)):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        q = "orders" if lower.startswith("/orders") else text
+
+        def store():
+            reply = echo_shopify.handle(q, force=True)
+            if reply and "sent this to your phone" not in reply:
+                send(CHAT_ID, reply)
+        threading.Thread(target=store, daemon=True).start()
+        return True
     if lower.startswith(("approve ", "reject ")):
         if shared and PENDING_FILE.exists():
             DECISION_FILE.write_text("yes" if lower.startswith("approve") else "no", encoding="utf-8")
@@ -342,6 +397,13 @@ def handle_command(text):
         send(CHAT_ID, "Scanning the watchlist for the best setup…")
         threading.Thread(target=lambda: _safe(echo_trading.send_idea_to_phone), daemon=True).start()
         return True
+    if echo_trading.AMOUNT_RE.search(text) or echo_trading.SELL_RE.match(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        reply = echo_trading.handle(text)
+        if reply and not echo_trading.sent_to_phone[0]:
+            send(CHAT_ID, reply, echo_trading.TRADE_KEYBOARD if echo_trading.pending() else None)
+        if reply:
+            return True
     if lower.startswith("/trade") or lower.startswith("paper "):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         send(CHAT_ID, echo_trading.handle(text) or echo_trading.handle("/trade"))
@@ -384,6 +446,10 @@ def handle_command(text):
              "• /leads - today's 20 businesses (/findleads gets new ones)\n"
              "• /trade analyse BHP.AX - chart read + risk plan\n"
              "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
+             "• /connections - what every office is connected to, and what's missing\n"
+             "• /shop, /orders, or just 'add a dog jacket to my store, $39.95, 20 in stock'\n"
+             "• put $500 into NVDA - Echo buys, then sells for you at the stop or target\n"
+             "• email Joe's Plumbing - Sales writes the email; you tap Yes to send\n"
              "• /trade propose - best trade idea with a chart; tap Place trade to approve\n"
              "• /ceo - today's business summary · /status - is Echo running?\n"
              "• /pipeline · pitch <business> · mark <business> won\n"

@@ -9,6 +9,20 @@ The **Day Trading Desk** does the research for you and only trades when you say 
 - Orders sent in the evening fill when the US market opens (about 1 AM Adelaide time).
 - Ask any time: `/trade propose` (idea now), `/trade scan`, `/trade analyse NVDA`, `/trade positions`, `/trade stats`. Or chat with the Day Trading Desk in Echo HQ.
 
+## Put your own money into a trade
+Tell the Day Trading Desk (Echo HQ or Telegram) how much and which stock:
+- **`put $500 into NVDA`** (also: `buy $300 of AAPL`, `invest $1000 in SPY`)
+
+Echo works out how many shares that buys, sets a stop-loss (1.5× the daily range below) and a take-profit target (twice as far above), and sends you the chart with **✅ Place trade / ❌ Skip trade**. If the chart is pointing down, it warns you first.
+
+After your one tap it **buys, then sells for you automatically**: at the target to take the profit, or at the stop-loss to cut the loss. You don't have to watch it.
+- With Alpaca connected, the stop and target sit at the broker as a bracket order, so they work even if your PC is off.
+- Without Alpaca, it runs in Echo's practice account and Echo checks the price every 5 minutes and sells at the stop or target, then texts you.
+- **`sell NVDA`** sells the whole position now (after a Yes).
+- `/trade positions` shows what you hold.
+
+Amounts buy whole shares (US shares only through Alpaca). Prices are in US dollars.
+
 ## Be realistic
 No trader or bot wins every trade. This approach aims for wins about twice the size of losses, so it can be profitable while winning less than half the time, and it can still lose money. Check its record with `/trade stats` and on your paper account for a few weeks before using real money. This is education, not financial advice.
 

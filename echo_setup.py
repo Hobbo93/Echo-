@@ -13,9 +13,26 @@ FIELDS = [
     ("bot_token", "Main bot token (reports + update approvals), from @BotFather"),
     ("chat_id", "Your numeric chat ID, from @userinfobot"),
     ("chat_bot_token", "Second bot token for chatting with Echo (optional)"),
-    ("google_places_key", "Google Places API key for finding leads (optional, see LEADS_SETUP.md)"),
-    ("alpaca_key_id", "Alpaca API key ID for the Day Trading Desk (optional, see TRADING_SETUP.md)"),
-    ("alpaca_secret_key", "Alpaca secret key (optional)"),
+]
+
+SECTIONS = [
+    ("Shopify (your Shopify Manager adds products, prices, stock, discounts) - see SHOPIFY_SETUP.md", [
+        ("shopify_store", "Store address, e.g. thedogden-2.myshopify.com"),
+        ("shopify_client_id", "Client ID (Dev Dashboard > your app > Settings)"),
+        ("shopify_client_secret", "Client secret"),
+        ("shopify_token", "OR an Admin API token starting shpat_ (leave blank if you used Client ID)"),
+    ]),
+    ("Alpaca broker (Day Trading Desk buys and sells for you) - see TRADING_SETUP.md", [
+        ("alpaca_key_id", "Alpaca API key ID"),
+        ("alpaca_secret_key", "Alpaca secret key"),
+    ]),
+    ("Gmail (Sales and Support send emails after your Yes) - see EMAIL_SETUP.md", [
+        ("gmail_address", "Your Gmail address"),
+        ("gmail_app_password", "Google app password (16 letters)"),
+    ]),
+    ("Google Places (Leads Manager finds 20 businesses a day) - see LEADS_SETUP.md", [
+        ("google_places_key", "Google Places API key"),
+    ]),
 ]
 
 PHONE_FIELDS = [
@@ -50,7 +67,15 @@ def main():
             if answer:
                 data[key] = answer.replace(" ", "") if key in ("twilio_number", "my_phone") else answer
 
-    ask(FIELDS)
+    import sys
+    connect_only = "--connect" in sys.argv
+    if not connect_only or not data.get("bot_token"):
+        ask(FIELDS)
+    for title, fields in SECTIONS:
+        done = all(str(data.get(k, "")).strip() for k, _ in fields[:2])
+        q = input(f"\n{'[connected] ' if done else ''}{title}\nSet this up{' again' if done else ''} now? (y/N): ")
+        if q.strip().lower().startswith("y"):
+            ask(fields)
 
     phone = input("\nSet up phone calls so Echo can ring you? Needs a Twilio account "
                   "(see PHONE_SETUP.md) (y/N): ").strip().lower()
@@ -73,7 +98,14 @@ def main():
     CONFIG.write_text(json.dumps(data, indent=2), encoding="utf-8")
     print("\nSaved.")
 
-    if data.get("bot_token") and chat_id:
+    try:
+        import echo_connections
+        print("\nTesting every connection...\n")
+        print(echo_connections.summary(live=True))
+    except Exception as exc:
+        print("Couldn't test the connections:", exc)
+
+    if data.get("bot_token") and chat_id and not connect_only:
         from echo_telegram import send_message
         if send_message("Echo is set up and connected."):
             print("Test message sent - check Telegram.")

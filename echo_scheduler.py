@@ -191,6 +191,7 @@ def run_trench_watch():
     try:
         for alert in echo_trading.check_trench_trades():
             echo_trading._telegram_text(alert)
+        echo_trading.check_paper_exits()  # practice account: sell at the stop or target
     except Exception as exc:
         print("Trench watch failed:", exc)
 

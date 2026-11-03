@@ -13,6 +13,9 @@ Commands (Echo HQ chat with the Day Trading Desk, or /trade on Telegram):
   positions             open paper positions with live profit/loss
   stats                 win rate, profit/loss, best/worst trade
   scan                  best setups on the watchlist right now
+  put $500 into AAPL    a trade with your money amount: Echo buys, then sells for you at
+                        the stop-loss or target (one Yes from you to start it)
+  sell AAPL             sell that position now (asks Yes/No first)
   /trade propose        top idea with a chart; tap Place trade (your approval) to place it
   market                UP / DOWN / WAIT for every stock on the watchlist
   venue trench          send Trench tickets + close alerts (or: venue alpaca / venue paper)
@@ -251,6 +254,13 @@ def handle(text):
     t = text.strip()
     low = t.lower()
     try:
+        m = re.search(r"\b(?:put|invest|buy|spend|trade)\s+\$\s?([\d,]+(?:\.\d+)?)\s*(?:aud|usd|dollars)?\s*"
+                      r"(?:in|into|on|of|worth of)?\s+" + SYMBOL, t, re.I)
+        if m:
+            return amount_trade(m.group(2), float(m.group(1).replace(",", "")))
+        m = re.match(r"^(?:/trade\s+)?(?:sell|close)\s+(?:all\s+(?:of\s+)?(?:my\s+)?)?" + SYMBOL + r"\s*$", t, re.I)
+        if m and m.group(1).lower() not in ("trade", "it", "everything", "position"):
+            return sell_request(m.group(1))
         m = re.match(r"^(?:/trade\s+)?paper\s+buy\s+" + SYMBOL + r"\s+(\d+)", t, re.I)
         if m:
             return paper_buy(m.group(1), int(m.group(2)))
@@ -425,6 +435,109 @@ def propose(s):
     return msg, png
 
 
+sent_to_phone = [False]  # True when the last trade ticket already went to Telegram
+AMOUNT_RE = re.compile(r"\b(?:put|invest|buy|spend|trade)\s+\$\s?[\d,]+", re.I)
+SELL_RE = re.compile(r"^(?:/trade\s+)?(?:sell|close)\s+(?:all\s+(?:of\s+)?(?:my\s+)?)?[A-Za-z0-9.\-^=]{1,15}\s*$", re.I)
+
+
+def amount_trade(symbol, amount):
+    """You choose the stock and how much money. Echo plans the buy, stop-loss and target,
+    and asks Yes/No. After a Yes it buys, then sells for you when the stop or target hits."""
+    import echo_broker
+    import echo_chart
+    symbol = symbol.upper()
+    rows, meta = candles(symbol)
+    price = float(meta.get("regularMarketPrice") or rows[-1][4])
+    a = atr(rows)
+    qty = math.floor(amount / price)
+    if qty < 1:
+        return f"${amount:,.2f} isn't enough for one {symbol} share (about {price:,.2f} each). Try a bigger amount."
+    stop, target = round(price - 1.5 * a, 2), round(price + 3 * a, 2)
+    sent_to_phone[0] = False
+    direction, *_rest, why = read_direction(rows, price)
+    plan = {"symbol": symbol, "direction": "UP", "qty": qty, "entry": price, "stop": stop, "target": target,
+            "amount": amount, "venue": "broker", "side": "buy", "created": datetime.now(timezone.utc).isoformat()}
+    DIR.mkdir(parents=True, exist_ok=True)
+    PENDING.write_text(json.dumps(plan), encoding="utf-8")
+    where = (("your " + echo_broker.mode() + " Alpaca account") if echo_broker.is_configured()
+             else "Echo's practice account (connect Alpaca for real orders: double-click connect_echo.bat)")
+    warn = "" if direction == "UP" else f"\n⚠️ Heads up: the chart says {direction} right now ({why}). Buying now goes against it."
+    msg = "\n".join([
+        f"YOUR TRADE: BUY {qty} {symbol} @ about {price:,.2f} = about ${qty * price:,.2f} of your ${amount:,.0f}",
+        f"Echo sells for you automatically: at {target:,.2f} to take profit (+${(target - price) * qty:,.0f}) "
+        f"or at {stop:,.2f} to cut the loss (-${(price - stop) * qty:,.0f}).",
+        f"Placed in {where}.{warn}",
+        "",
+        f"Reply Yes to place it, or No to cancel. Expires in {PENDING_MINUTES} minutes.",
+        DISCLAIMER,
+    ])
+    try:
+        png = echo_chart.candle_chart(rows, price, stop, target)
+        _telegram_photo(png, f"{symbol}: blue = buy, red = stop-loss, green = take profit")
+        sent_to_phone[0] = bool(_telegram_text(msg, TRADE_KEYBOARD))
+    except Exception:
+        pass
+    return msg
+
+
+def sell_request(symbol):
+    """Ask Yes/No before selling a whole position now."""
+    import echo_broker
+    symbol = symbol.upper()
+    held = None
+    if echo_broker.is_configured():
+        try:
+            held = next((p for p in echo_broker.positions() if p.get("symbol") == symbol), None)
+            held = held and {"qty": float(held["qty"]), "entry": float(held["avg_entry_price"])}
+        except RuntimeError as exc:
+            return str(exc)
+    else:
+        held = _load()["positions"].get(symbol)
+    if not held:
+        return f"You don't hold any {symbol} right now."
+    sent_to_phone[0] = False
+    price, _ = live_price(symbol)
+    pnl = (price - held["entry"]) * held["qty"]
+    plan = {"symbol": symbol, "side": "sell", "qty": held["qty"], "entry": price, "venue": "broker",
+            "created": datetime.now(timezone.utc).isoformat()}
+    DIR.mkdir(parents=True, exist_ok=True)
+    PENDING.write_text(json.dumps(plan), encoding="utf-8")
+    msg = (f"SELL {held['qty']:g} {symbol} now @ about {price:,.2f}? That's {'a profit' if pnl >= 0 else 'a loss'} "
+           f"of about {pnl:+,.2f}.\nReply Yes to sell, or No to keep it.")
+    try:
+        sent_to_phone[0] = bool(_telegram_text(msg, TRADE_KEYBOARD))
+    except Exception:
+        pass
+    return msg
+
+
+def check_paper_exits():
+    """Practice account: sell automatically when a trade's stop-loss or target is hit."""
+    j = _load()
+    exits = j.get("exits", {})
+    said = []
+    for sym in [k for k in exits if k not in j["positions"]]:
+        exits.pop(sym)
+    _save(j)
+    for sym, plan in list(exits.items()):
+        try:
+            price, _ = live_price(sym)
+        except RuntimeError:
+            continue
+        if price >= plan["target"] or price <= plan["stop"]:
+            hit = "target ✅" if price >= plan["target"] else "stop-loss 🛑"
+            said.append(f"Echo sold {sym} at the {hit}: " + paper_sell(sym))
+            j = _load()
+            j.setdefault("exits", {}).pop(sym, None)
+            _save(j)
+    if said:
+        try:
+            _telegram_text("\n".join(said))
+        except Exception:
+            pass
+    return said
+
+
 def pending():
     try:
         plan = json.loads(PENDING.read_text(encoding="utf-8"))
@@ -451,8 +564,14 @@ def approve():
     if not plan:
         return "That trade idea has expired or was already handled. Nothing was placed.", None
     PENDING.unlink(missing_ok=True)
+    if plan.get("side") == "sell":
+        if echo_broker.is_configured():
+            order = echo_broker.close_position(plan["symbol"])
+            return (f"✅ SOLD ({echo_broker.mode()}): {plan['qty']:g} {plan['symbol']} at market. "
+                    f"Order ID {order.get('id', '')}"), None
+        return paper_sell(plan["symbol"]), None
     rows, _ = candles(plan["symbol"])
-    if settings()["venue"] == "trench":
+    if plan.get("venue", settings()["venue"]) == "trench":
         stake, _pct, mult, msg = trench_ticket(plan)
         _open_trench_trade(plan, stake, mult)
         png = echo_chart.candle_chart(rows, plan["entry"], plan["stop"], plan["target"], mark_last=True)
@@ -474,8 +593,12 @@ def approve():
                f"Order ID {order['id']}")
     else:
         msg = paper_buy(plan["symbol"], plan["qty"]) + (
-            f"\nPlan: stop {plan['stop']:,.2f}, target {plan['target']:,.2f}. "
-            "Connect a broker (TRADING_SETUP.md) for real orders with automatic stops.")
+            f"\nEcho will sell it for you at the stop {plan['stop']:,.2f} or the target {plan['target']:,.2f}. "
+            "Connect Alpaca (double-click connect_echo.bat) for real orders.")
+        j = _load()
+        if plan["symbol"] in j["positions"]:
+            j.setdefault("exits", {})[plan["symbol"]] = {"stop": plan["stop"], "target": plan["target"]}
+            _save(j)
         entry = plan["entry"]
     png = echo_chart.candle_chart(rows, entry, plan["stop"], plan["target"], mark_last=True)
     return msg, png

@@ -46,7 +46,8 @@ def _api(method, path, body=None):
                                           "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            return json.load(r)
+            raw = r.read()
+            return json.loads(raw) if raw.strip() else {}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:300]
         raise RuntimeError(f"Broker said no ({exc.code}): {detail}") from None
@@ -77,3 +78,14 @@ def order_status(order_id):
 
 def positions():
     return _api("GET", "/v2/positions")
+
+
+def close_position(symbol):
+    """Sell the whole position now: cancels its open stop/target orders first, then sells at market."""
+    symbol = symbol.upper()
+    for o in _api("GET", "/v2/orders?status=open&nested=false&symbols=" + symbol) or []:
+        try:
+            _api("DELETE", "/v2/orders/" + o["id"])
+        except RuntimeError:
+            pass
+    return _api("DELETE", "/v2/positions/" + symbol)

@@ -7,12 +7,16 @@ import json
 import os
 import urllib.request
 import base64
+import re
 import binascii
 import urllib.error
 from pathlib import Path
 import echo_photos
 import echo_roblox
 import echo_leads
+import echo_shopify
+import echo_email
+import echo_connections
 import echo_trading
 import echo_business
 import time as _time
@@ -202,6 +206,11 @@ def employee_details(employee_id):
 # AI CHAT
 # ==========================================
 
+@app.route("/api/connections")
+def connections():
+    return jsonify(echo_connections.check_all())
+
+
 @app.route("/api/chat", methods=["POST", "OPTIONS"])
 def chat():
 
@@ -319,14 +328,28 @@ def chat():
                 "image": "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode(),
                 "employee_id": employee_id, "employee": employee["name"]})
 
+        if not images and echo_email.EMAIL_RE.match(message):
+            reply = echo_email.handle(message)
+            if reply:
+                return jsonify({"reply": reply, "employee_id": employee_id, "employee": employee["name"]})
+
         if not images:
             office_reply = echo_business.handle(EMPLOYEES[employee_id]["name"], message)
             if office_reply:
                 return jsonify({"reply": office_reply, "employee_id": employee_id,
                                 "employee": employee["name"]})
 
+        if employee_id == "employee_3" or (not images and echo_shopify.STORE_WORDS.search(message)
+                                            and re.search(r"\b(shopify|store|furventure)\b", message, re.I)):
+            saved = [echo_photos.save_photo(b, "product") for b in images]
+            reply = echo_shopify.handle(message, images=saved, force=employee_id == "employee_3")
+            if reply:
+                return jsonify({"reply": reply, "employee_id": employee_id, "employee": employee["name"]})
+
         if not images and employee_id == "employee_10":
             reply = echo_trading.handle(message)
+            if reply and echo_trading.sent_to_phone[0]:
+                reply += "\n\n📱 Sent to your phone: tap ✅ Place trade on Telegram to approve it."
             if reply:
                 return jsonify({"reply": reply, "employee_id": employee_id,
                                 "employee": employee["name"]})

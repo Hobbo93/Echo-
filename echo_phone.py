@@ -262,6 +262,17 @@ def _do_approval(kind, choice):
                 return "That update was already handled."
             DECISION_FILE.write_text(choice, encoding="utf-8")
             return "Done, installing the update." if choice == "yes" else "Okay, I'll skip that update."
+        if kind == "shopify":
+            import echo_shopify
+            if choice == "no":
+                return echo_shopify.skip()
+            result = echo_shopify.approve()
+            try:
+                import echo_trading
+                echo_trading._telegram_text("Approved on the phone:\n" + result)
+            except Exception:
+                pass
+            return result.splitlines()[0].replace("✅ ", "Done. ")
         if kind == "trade":
             import echo_trading
             if choice == "no":
