@@ -35,15 +35,22 @@ import echo_business
 
 def telegram(method, params=None):
     url = "https://api.telegram.org/bot" + TOKEN + "/" + method
-    try:
-        with urllib.request.urlopen(url, data=urllib.parse.urlencode(params or {}).encode(), timeout=45) as r:
-            data = json.load(r)
-    except urllib.error.HTTPError as exc:
+    tries = 1 if method == "getUpdates" else 4  # retry sends through brief internet drops
+    for attempt in range(tries):
         try:
-            detail = json.load(exc).get("description", "")
-        except ValueError:
-            detail = ""
-        raise RuntimeError(f"Telegram {method}: HTTP {exc.code} {detail}".strip()) from None
+            with urllib.request.urlopen(url, data=urllib.parse.urlencode(params or {}).encode(), timeout=45) as r:
+                data = json.load(r)
+            break
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.load(exc).get("description", "")
+            except ValueError:
+                detail = ""
+            raise RuntimeError(f"Telegram {method}: HTTP {exc.code} {detail}".strip()) from None
+        except (urllib.error.URLError, OSError):
+            if attempt == tries - 1:
+                raise
+            time.sleep(3 * (attempt + 1))
     if not data.get("ok"):
         raise RuntimeError(data.get("description", "Telegram API error"))
     return data["result"]
@@ -113,8 +120,16 @@ def _upload(method, field, chat_id, path, content_type, caption=""):
         + ("\r\n--" + boundary + "--\r\n").encode()
     req = urllib.request.Request("https://api.telegram.org/bot" + TOKEN + "/" + method, data=body,
                                  headers={"Content-Type": "multipart/form-data; boundary=" + boundary})
-    with urllib.request.urlopen(req, timeout=90) as r:
-        return json.load(r).get("ok", False)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r).get("ok", False)
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, OSError):
+            if attempt == 2:
+                raise
+            time.sleep(4 * (attempt + 1))
 
 
 def send_voice(chat_id, text):
@@ -203,6 +218,28 @@ def handle_command(text):
         return True
     if lower.startswith("/mood"):
         send(CHAT_ID, "I'm feeling " + echo_personality.MOODS[echo_personality.mood()] + " right now 🙂")
+        return True
+    if lower.startswith(("/office", "/officevideo")) or re.search(
+            r"\b(photo|picture|pic|video|clip|screenshot)s? of (the |my )?(digital |echo |3d )?(office|hq|headquarters|building)\b", lower):
+        kind = "video" if ("video" in lower or "clip" in lower or lower.startswith("/officevideo")) else "photo"
+        dept = next((k for k in ("sales", "marketing", "content", "editing", "research", "web", "operations", "finance",
+                                 "shopify", "trading", "support", "relax", "ceo") if k in lower), "")
+        if dept == "web":
+            dept = "webdesign"
+        try:
+            req = urllib.request.Request("http://127.0.0.1:5000/api/office/capture-request",
+                                         data=json.dumps({"kind": kind, "dept": dept}).encode(),
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                info = json.load(r)
+        except Exception:
+            send(CHAT_ID, "Echo HQ's server isn't answering, so I can't film the office right now.")
+            return True
+        if not info.get("page_open"):
+            import webbrowser
+            webbrowser.open("http://127.0.0.1:5000/?capture=1")
+        send(CHAT_ID, ("🎥 Filming the office for you… (about 15 seconds)" if kind == "video"
+                       else "📸 Snapping the office for you…"))
         return True
     picture = echo_photos.picture_request(text)
     if picture:
@@ -340,6 +377,7 @@ def handle_command(text):
              "• send a photo (add a caption to ask about it)\n"
              "• send me a picture of ... - I make you an image\n"
              "• remember that ... - I'll remember it about you\n"
+             "• /office - photo of the digital office · /officevideo - a video tour\n"
              "• /screenshot - photo of your PC screen\n"
              "• /photos and /photo 1 - get saved photos back\n"
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"

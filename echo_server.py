@@ -436,6 +436,83 @@ def office_rundown():
     return jsonify({"text": echo_business.rundown()})
 
 
+# ---- office photos / videos for your phone ----
+CAPTURE_REQ = Path.home() / ".echo_office_capture.json"
+_capture_seen = [0.0]
+
+
+@app.route("/api/office/capture-request", methods=["POST"])
+def office_capture_request():
+    """Telegram asks for a photo/video of the office; the open Echo HQ page makes it."""
+    data = request.get_json(silent=True) or {}
+    job = {"id": str(int(_time.time() * 1000)), "kind": "video" if data.get("kind") == "video" else "photo",
+           "dept": str(data.get("dept") or ""), "time": _time.time()}
+    CAPTURE_REQ.write_text(json.dumps(job), encoding="utf-8")
+    page_open = _time.time() - _capture_seen[0] < 15
+    return jsonify({"queued": True, "page_open": page_open})
+
+
+@app.route("/api/office/capture-job", methods=["GET"])
+def office_capture_job():
+    _capture_seen[0] = _time.time()
+    try:
+        job = json.loads(CAPTURE_REQ.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ("", 204)
+    if _time.time() - job.get("time", 0) > 300:
+        CAPTURE_REQ.unlink(missing_ok=True)
+        return ("", 204)
+    CAPTURE_REQ.unlink(missing_ok=True)
+    return jsonify(job)
+
+
+@app.route("/api/office/capture", methods=["POST"])
+def office_capture():
+    """The page sends the finished photo/video; Echo saves it and sends it to your phone."""
+    data = request.get_json(silent=True) or {}
+    kind = data.get("kind", "photo")
+    try:
+        blob = base64.b64decode(str(data.get("data", "")).split(",", 1)[-1])
+    except (ValueError, binascii.Error):
+        return jsonify({"error": "bad data"}), 400
+    if len(blob) > 45 * 1024 * 1024:
+        return jsonify({"error": "too large"}), 413
+    folder = Path.home() / "Echo_photos"
+    folder.mkdir(exist_ok=True)
+    stamp = _time.strftime("%Y%m%d-%H%M%S")
+    caption = str(data.get("caption") or "Echo HQ right now")[:200]
+    if kind == "video":
+        path = folder / f"office_{stamp}.webm"
+        path.write_bytes(blob)
+        mp4 = folder / f"office_{stamp}.mp4"
+        sent_path, method, field, mime = path, "sendDocument", "document", "video/webm"
+        try:  # Telegram plays MP4 inline; convert with PyAV if it's installed
+            import av
+            with av.open(str(path)) as src, av.open(str(mp4), "w") as dst:
+                vin = src.streams.video[0]
+                out = dst.add_stream("libx264", rate=30)
+                out.width, out.height, out.pix_fmt = vin.codec_context.width // 2 * 2, vin.codec_context.height // 2 * 2, "yuv420p"
+                for frame in src.decode(vin):
+                    for pkt in out.encode(frame.reformat(width=out.width, height=out.height, format="yuv420p")):
+                        dst.mux(pkt)
+                for pkt in out.encode(None):
+                    dst.mux(pkt)
+            sent_path, method, field, mime = mp4, "sendVideo", "video", "video/mp4"
+        except Exception:
+            pass
+    else:
+        sent_path = folder / f"office_{stamp}.png"
+        sent_path.write_bytes(blob)
+        method, field, mime = "sendPhoto", "photo", "image/png"
+    ok = False
+    try:
+        import echo_telegram_chat as tg
+        ok = tg._upload(method, field, tg.CHAT_ID, sent_path, mime, caption)
+    except Exception as exc:
+        print("Couldn't send office capture:", exc, flush=True)
+    return jsonify({"saved": str(sent_path), "sent": bool(ok)})
+
+
 @app.route("/api/leads", methods=["GET"])
 def leads_latest():
     return jsonify(echo_leads.latest() or {})

@@ -77,6 +77,8 @@ box-shadow:0 3px 10px rgba(0,0,0,.25);pointer-events:auto;cursor:pointer;white-s
 .banner:hover{transform:translate(-50%,-50%) scale(1.08)}
 .bubble.far{font-size:9px;padding:3px 6px;max-width:120px}
 .bubble:after{content:"";position:absolute;left:50%;bottom:-8px;border:6px solid transparent;border-top-color:#fff;transform:translateX(-50%)}
+#captureBtns{position:absolute;bottom:42px;right:12px}
+#captureBtns button{background:#fff;font-size:16px;padding:8px 10px;box-shadow:0 3px 10px rgba(0,0,0,.2)}
 #backButton{position:absolute;top:12px;left:12px;display:none;background:#fff;color:#0c2a3d;font-weight:bold;box-shadow:0 3px 10px rgba(0,0,0,.2)}
 #sceneHint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.88);color:#0c2a3d;
 font-size:12px;padding:6px 12px;border-radius:20px;pointer-events:none;white-space:nowrap}
@@ -213,6 +215,7 @@ Ollama connection requires the Python backend.
 <button id="backButton" onclick="backToHQ()">← Back to HQ</button>
 <div id="sceneHint">Click a room to zoom in · click a bot to see what it's doing · click Echo in the middle for a rundown</div>
 <div id="infoPanel"></div>
+<div id="captureBtns"><button onclick="officeCapture('photo',zoomedKey())" title="Send a photo of the office to your phone">📸</button><button onclick="officeCapture('video',zoomedKey())" title="Send a video tour to your phone">🎥</button></div>
 </main>
 
 <section class="panel">
@@ -489,7 +492,7 @@ scene=new THREE.Scene();
 scene.background=new THREE.Color(0x8fd3f5);
 scene.fog=new THREE.Fog(0xbfe6f8,80,190);
 camera=new THREE.PerspectiveCamera(40,1,.1,500);
-renderer=new THREE.WebGLRenderer({canvas:$("office"),antialias:true});
+renderer=new THREE.WebGLRenderer({canvas:$("office"),antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -966,6 +969,7 @@ if(voicesOn&&window.speechSynthesis)speak(r.text.replace(/^👋 /,"").replace(/^
 
 function closePanel(){panelMode=null;focusBot=null;$("infoPanel").style.display="none";}
 window.closePanel=closePanel;
+window.zoomedKey=()=>zoomed;
 window.backToHQ=()=>{closePanel();overview();};
 window.panelTalk=()=>{$("prompt").focus();};
 window.panelCall=()=>{if(!call.active)toggleCall();};
@@ -996,6 +1000,71 @@ ${panelMode==="dept"?`<div class="ipHead">Team</div><div>${bots.filter(b=>b.room
 }
 el.innerHTML=html;el.style.display="block";
 }
+
+// ---------- photos & videos of the office for your phone ----------
+const shot=document.createElement("canvas");
+function composite(){
+const src=renderer.domElement,ratio=src.width/canvas.clientWidth;
+shot.width=src.width;shot.height=src.height;
+const g=shot.getContext("2d");g.drawImage(src,0,0);
+const draw=(el,bg,fg,border,size)=>{
+if(el.style.display==="none"||!el.textContent)return;
+const x=parseFloat(el.style.left)*ratio,y=parseFloat(el.style.top)*ratio;
+g.font=`bold ${size*ratio}px Arial`;
+const words=el.textContent.split(" "),lines=[];let line="";
+words.forEach(w=>{if(g.measureText(line+" "+w).width>170*ratio&&line){lines.push(line);line=w;}else line=line?line+" "+w:w;});lines.push(line);
+const lh=size*1.3*ratio,w=Math.max(...lines.map(l=>g.measureText(l).width))+16*ratio,h=lines.length*lh+10*ratio;
+const bx=x-w/2,by=bg==="#fff"?y-h-8*ratio:y-h/2;
+g.fillStyle=bg;g.strokeStyle=border;g.lineWidth=2*ratio;g.beginPath();g.roundRect(bx,by,w,h,10*ratio);g.fill();g.stroke();
+g.fillStyle=fg;lines.forEach((l,i)=>g.fillText(l,bx+8*ratio,by+lh*(i+.8)+2*ratio));
+};
+bannerEls.forEach(el=>draw(el,el.style.background,"#fff","rgba(255,255,255,.8)",12));
+bubbleEls.forEach(el=>draw(el,"#fff","#13202f",el.style.borderColor||"#0ea5e9",12));
+g.fillStyle="rgba(255,255,255,.85)";g.font=`bold ${14*ratio}px Arial`;g.fillText("ECHO AI OFFICE HQ · "+new Date().toLocaleString(),14*ratio,shot.height-14*ratio);
+return shot;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function sendCapture(kind,dataUrl,caption){
+await fetch(serverURL()+"/api/office/capture",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({kind,data:dataUrl,caption})});
+}
+let capturing=false;
+async function capturePhoto(dept){
+if(dept&&roomByKey[dept]){zoomTo(dept);await sleep(2600);}
+const url=composite().toDataURL("image/png");
+await sendCapture("photo",url,dept?DEPT[dept].label+" room, right now":"Echo HQ right now");
+addMessage("📸 Sent a photo of the office to your phone.");
+}
+async function captureVideo(dept){
+const stream=shot.captureStream(30);
+const type=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(t=>MediaRecorder.isTypeSupported(t));
+const rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:4e6});const chunks=[];
+rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+let filming=true;const loop=()=>{if(!filming)return;composite();requestAnimationFrame(loop);};
+composite();rec.start(500);loop();
+overview();await sleep(1500);
+for(let k=0;k<30;k++){want.orbit+=.03;await sleep(100);}
+const target=dept&&roomByKey[dept]?dept:pick(DEPTS.filter(d=>d.key!=="relax")).key;
+zoomTo(target);await sleep(6500);
+overview();await sleep(3000);
+filming=false;rec.stop();await new Promise(r=>rec.onstop=r);
+const blob=new Blob(chunks,{type:"video/webm"});
+const dataUrl=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob);});
+await sendCapture("video",dataUrl,"A tour of Echo HQ, featuring "+DEPT[target].label);
+addMessage("🎥 Sent a video tour of the office to your phone.");
+}
+window.officeCapture=async(kind,dept)=>{
+if(capturing||!THREE)return;capturing=true;
+const prev=$("infoPanel").style.display;closePanel();
+try{kind==="video"?await captureVideo(dept):await capturePhoto(dept);}
+catch(e){addMessage("Couldn't capture the office: "+e.message);}
+capturing=false;
+};
+setInterval(async()=>{
+if(capturing)return;
+try{const r=await fetch(serverURL()+"/api/office/capture-job");if(r.status!==200)return;
+const job=await r.json();officeCapture(job.kind,job.dept);}catch{}
+},4000);
 
 async function loadFeed(){
 try{feed=await fetch(serverURL()+"/api/office").then(r=>r.json());}catch{}
