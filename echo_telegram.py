@@ -9,6 +9,25 @@ CONFIG = Path.home() / ".echo_telegram.json"
 # When Echo chats through the same bot as the updater, the chat bridge
 # receives APPROVE/REJECT replies and passes them on through this file.
 DECISION_FILE = Path.home() / ".echo_update_decision"
+# Exists while the updater is waiting for a Yes/No answer.
+PENDING_FILE = Path.home() / ".echo_update_pending"
+
+# Tap-to-answer buttons shown under an approval question.
+YES_NO_KEYBOARD = json.dumps({"keyboard": [["✅ Yes", "❌ No"]],
+                              "one_time_keyboard": True, "resize_keyboard": True})
+NO_KEYBOARD = json.dumps({"remove_keyboard": True})
+
+
+def yes_no(text):
+    """'yes' / 'no' for an approval answer, otherwise None."""
+    words = "".join(ch for ch in str(text).lower() if ch.isalnum() or ch == " ").split()
+    if not words or len(words) > 4:
+        return None
+    if words[0] in ("yes", "y", "yep", "yeah", "yea", "ok", "okay", "sure", "approve", "approved", "install"):
+        return "yes"
+    if words[0] in ("no", "n", "nope", "nah", "reject", "skip", "dont", "cancel"):
+        return "no"
+    return None
 
 REPORT_LABELS = [
     ("queued_tasks", "Tasks queued today"),

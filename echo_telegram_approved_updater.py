@@ -15,7 +15,8 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
-from echo_telegram import _credentials, shared_bot, DECISION_FILE
+from echo_telegram import (_credentials, shared_bot, yes_no, DECISION_FILE,
+                           PENDING_FILE, YES_NO_KEYBOARD, NO_KEYBOARD)
 
 REPO_URL = "https://github.com/Hobbo93/Echo-.git"
 ROOT = Path(__file__).resolve().parent
@@ -41,8 +42,11 @@ def telegram(method, params):
         raise RuntimeError("Telegram request failed")
     return data["result"]
 
-def notify(message):
-    return telegram("sendMessage", {"chat_id": CHAT_ID, "text": message[:4000]})
+def notify(message, keyboard=None):
+    params = {"chat_id": CHAT_ID, "text": message[:4000]}
+    if keyboard:
+        params["reply_markup"] = keyboard
+    return telegram("sendMessage", params)
 
 def git(*args, directory=None):
     result = subprocess.run(
@@ -155,25 +159,26 @@ def main():
             temp, repo, commit = snapshot()
             if commit != state["baseline"]:
                 request = commit[:12]
-                notify("New Echo update: " + request + "\nReply APPROVE " + request +
-                       " to install with backups, or REJECT " + request + " to skip.")
+                try:
+                    summary = git("log", "-1", "--format=%s", directory=repo)[:200]
+                except Exception:
+                    summary = ""
+                notify("New Echo update ready" + (":\n" + summary if summary else ".") +
+                       "\n\nInstall it? Reply Yes or No.", YES_NO_KEYBOARD)
                 decision = None
                 if shared_bot():
-                    # The chat bridge reads your replies and hands them over.
+                    # The chat bridge reads your reply and hands it over.
                     DECISION_FILE.unlink(missing_ok=True)
+                    PENDING_FILE.write_text(request, encoding="utf-8")
                 while decision is None and shared_bot():
-                    time.sleep(3)
+                    time.sleep(2)
                     try:
                         answer = DECISION_FILE.read_text(encoding="utf-8").strip()
                     except OSError:
                         continue
                     DECISION_FILE.unlink(missing_ok=True)
-                    if answer == "APPROVE " + request:
-                        decision = "approve"
-                    elif answer == "REJECT " + request:
-                        decision = "reject"
-                    else:
-                        notify("That code doesn't match. Reply APPROVE " + request + " or REJECT " + request + ".")
+                    decision = {"yes": "approve", "no": "reject"}.get(answer)
+                PENDING_FILE.unlink(missing_ok=True)
                 while decision is None:
                     for update in telegram("getUpdates", {"offset": offset, "timeout": 25}):
                         offset = max(offset, update["update_id"] + 1)
@@ -181,9 +186,10 @@ def main():
                         if str(msg.get("chat", {}).get("id")) != CHAT_ID:
                             continue
                         answer = msg.get("text", "").strip()
-                        if answer == "APPROVE " + request:
+                        choice = yes_no(answer)
+                        if choice == "yes" or answer == "APPROVE " + request:
                             decision = "approve"
-                        elif answer == "REJECT " + request:
+                        elif choice == "no" or answer == "REJECT " + request:
                             decision = "reject"
                 if decision == "approve":
                     latest = git("ls-remote", REPO_URL, "refs/heads/main").split()[0]
@@ -191,10 +197,10 @@ def main():
                         notify("Update changed while awaiting approval. No files installed; will ask again.")
                         continue
                     count, backup = install(repo, commit)
-                    notify("Echo copied " + str(count) + " files; backup: " + str(backup) +
-                           "\nRestart Echo manually to use updates.")
+                    notify("Installed. " + str(count) + " files updated (old versions backed up in " +
+                           str(backup) + ").\nRestart Echo to use the update.", NO_KEYBOARD)
                 else:
-                    notify("Echo update rejected; no files changed.")
+                    notify("Skipped. Nothing was changed.", NO_KEYBOARD)
                 state["baseline"] = commit
                 STATE_FILE.write_text(json.dumps(state), encoding="utf-8")
             time.sleep(600)

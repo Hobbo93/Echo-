@@ -36,3 +36,11 @@ Environment variables still work and take priority: `ECHO_TELEGRAM_TOKEN`, `ECHO
 - Update requests: reply `APPROVE <code>` or `REJECT <code>` to the main bot.
 
 Run `py echo_preflight.py` any time to check the setup.
+
+## Talking to Echo on Telegram
+
+- **Text or voice notes:** just message your Echo bot.
+- **Photos:** send a photo (add a caption to ask about it). The first time, Echo asks you to send `/getvision` to download its free photo model (about 3.3 GB). Photos are saved in `Echo_photos` in your user folder.
+- **Photos from Echo:** `/screenshot` sends a photo of your PC screen. `/photos` lists saved photos and `/photo 1` sends one back.
+- **Update approvals:** when Echo asks to install an update, tap **Yes** or **No**.
+- `/callme` rings your phone (needs PHONE_SETUP.md), `/new` starts a fresh chat, `/help` lists everything.

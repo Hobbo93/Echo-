@@ -6,8 +6,11 @@
 import json
 import os
 import urllib.request
+import base64
+import binascii
 import urllib.error
 from pathlib import Path
+import echo_photos
 from flask import Flask, request, jsonify, send_file
 
 from echo_employees import (
@@ -196,7 +199,21 @@ def chat():
 
     message = message.strip()
 
-    if not message:
+    # Photos attached in Echo HQ arrive as base64 (optionally data: URLs).
+    images = []
+    raw_images = data.get("images", [])
+    if isinstance(raw_images, list):
+        for item in raw_images[:3]:
+            if not isinstance(item, str):
+                continue
+            try:
+                blob = base64.b64decode(item.split(",", 1)[-1], validate=False)
+            except (ValueError, binascii.Error):
+                continue
+            if echo_photos.image_type(blob) and len(blob) <= echo_photos.MAX_IMAGE_BYTES:
+                images.append(blob)
+
+    if not message and not images:
         return jsonify({
             "error": "Message cannot be empty"
         }), 400
@@ -266,11 +283,21 @@ def chat():
 
     try:
 
-        reply = ask_ollama(
-            message,
-            employee,
-            history
-        )
+        if images:
+            if not echo_photos.has_vision():
+                return jsonify({
+                    "error": echo_photos.need_vision_message("Click \"Download photo brain\""),
+                    "need_vision": True
+                }), 409
+            for blob in images:
+                echo_photos.save_photo(blob, "from_you")
+            reply = echo_photos.look(images, message, history)
+        else:
+            reply = ask_ollama(
+                message,
+                employee,
+                history
+            )
 
         return jsonify({
             "reply": reply,
@@ -304,6 +331,26 @@ def chat():
         return jsonify({
             "error": str(error)
         }), 500
+
+
+# ==========================================
+# PHOTO VISION MODEL (downloaded only when you click)
+# ==========================================
+
+@app.route("/api/vision", methods=["GET"])
+def vision_status():
+    return jsonify({
+        "installed": echo_photos.has_vision(),
+        "model": echo_photos.VISION_MODEL,
+        "size": echo_photos.VISION_SIZE,
+        **echo_photos.pull_state
+    })
+
+
+@app.route("/api/vision/install", methods=["POST"])
+def vision_install():
+    started = echo_photos.pull_vision_in_background()
+    return jsonify({"started": started, **echo_photos.pull_state})
 
 
 # ==========================================
