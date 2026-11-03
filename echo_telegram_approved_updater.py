@@ -15,7 +15,7 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
-from echo_telegram import _credentials
+from echo_telegram import _credentials, shared_bot, DECISION_FILE
 
 REPO_URL = "https://github.com/Hobbo93/Echo-.git"
 ROOT = Path(__file__).resolve().parent
@@ -143,8 +143,10 @@ def main():
         notify("Echo updater connected. Approval required before any GitHub update.")
     except RuntimeError as exc:
         raise SystemExit(str(exc) + " Check your Telegram chat ID.") from None
-    old_updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
-    offset = max((u["update_id"] for u in old_updates), default=0) + 1
+    offset = 0
+    if not shared_bot():  # with a shared bot the chat bridge reads messages
+        old_updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
+        offset = max((u["update_id"] for u in old_updates), default=0) + 1
 
     print("Echo approved updater running:", ROOT, flush=True)
     while True:
@@ -156,6 +158,22 @@ def main():
                 notify("New Echo update: " + request + "\nReply APPROVE " + request +
                        " to install with backups, or REJECT " + request + " to skip.")
                 decision = None
+                if shared_bot():
+                    # The chat bridge reads your replies and hands them over.
+                    DECISION_FILE.unlink(missing_ok=True)
+                while decision is None and shared_bot():
+                    time.sleep(3)
+                    try:
+                        answer = DECISION_FILE.read_text(encoding="utf-8").strip()
+                    except OSError:
+                        continue
+                    DECISION_FILE.unlink(missing_ok=True)
+                    if answer == "APPROVE " + request:
+                        decision = "approve"
+                    elif answer == "REJECT " + request:
+                        decision = "reject"
+                    else:
+                        notify("That code doesn't match. Reply APPROVE " + request + " or REJECT " + request + ".")
                 while decision is None:
                     for update in telegram("getUpdates", {"offset": offset, "timeout": 25}):
                         offset = max(offset, update["update_id"] + 1)
@@ -185,6 +203,9 @@ def main():
             return
         except Exception as exc:
             print("Update check error:", exc, flush=True)
+            if isinstance(exc, (TimeoutError, OSError)) and "timed out" in str(exc).lower():
+                time.sleep(30)  # brief network blip: retry quietly, no phone alert
+                continue
             try:
                 notify("Echo updater needs attention: " + str(exc)[:500])
             except Exception:

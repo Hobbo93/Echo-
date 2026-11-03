@@ -6,6 +6,9 @@ import urllib.error
 from pathlib import Path
 
 CONFIG = Path.home() / ".echo_telegram.json"
+# When Echo chats through the same bot as the updater, the chat bridge
+# receives APPROVE/REJECT replies and passes them on through this file.
+DECISION_FILE = Path.home() / ".echo_update_decision"
 
 REPORT_LABELS = [
     ("queued_tasks", "Tasks queued today"),
@@ -36,6 +39,7 @@ def chat_bot_credentials():
     """Token and chat ID for the separate Telegram chat bot.
 
     Env vars win; otherwise "chat_bot_token" in ~/.echo_telegram.json.
+    With no separate chat bot, Echo chats through the main bot.
     A private chat ID is your Telegram user ID, so it is the same for every
     bot and falls back to the main "chat_id".
     """
@@ -47,7 +51,13 @@ def chat_bot_credentials():
             token = token or str(data.get("chat_bot_token", "")).strip()
         except (OSError, ValueError, AttributeError):
             pass
-    return token, chat or _credentials()[1]
+    main_token, main_chat = _credentials()
+    return token or main_token, chat or main_chat
+
+
+def shared_bot():
+    """True when chat and update approvals use the same Telegram bot."""
+    return chat_bot_credentials()[0] == _credentials()[0]
 
 
 def is_configured():

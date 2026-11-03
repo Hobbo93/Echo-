@@ -1,4 +1,4 @@
-"""Echo Telegram chat bridge. Uses a separate Telegram bot from the updater.
+"""Echo Telegram chat bridge. Uses your Echo bot (or a separate chat bot if set).
 Text and voice notes go to local Ollama. Send a voice note and Echo answers
 with a voice note too (see echo_voice.py). No paid API required.
 Telegram bots can't take live calls; /callme rings your phone if Echo's
@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from echo_telegram import chat_bot_credentials, _credentials
+from echo_telegram import chat_bot_credentials, shared_bot, DECISION_FILE
 
 TOKEN, CHAT_ID = chat_bot_credentials()
 HISTORY_TURNS = 8  # remembered back-and-forth exchanges
@@ -113,12 +113,10 @@ def send_voice(chat_id, text):
 
 def main():
     if not TOKEN:
-        raise SystemExit("Create a second Telegram bot via BotFather and add its token as "
-                         "\"chat_bot_token\" in .echo_telegram.json (see TELEGRAM_SETUP.md).")
+        raise SystemExit("Telegram is not set up yet. Run setup_echo.bat (see TELEGRAM_SETUP.md).")
     if not CHAT_ID or not CHAT_ID.lstrip("-").isdigit():
         raise SystemExit("Add your numeric \"chat_id\" to .echo_telegram.json (see TELEGRAM_SETUP.md).")
-    if TOKEN == _credentials()[0]:
-        raise SystemExit("Chat and updater cannot share a Telegram bot token. Create a separate chat bot.")
+    shared = shared_bot()
     print("Echo Telegram chat bridge ready. Send a message to your bot.", flush=True)
     updates = telegram("getUpdates", {"timeout": 0, "limit": 100})
     offset = max((u["update_id"] for u in updates), default=-1) + 1
@@ -132,7 +130,11 @@ def main():
                     continue
                 text = msg.get("text", "").strip()
                 if text.startswith(("APPROVE ", "REJECT ")):
-                    send(CHAT_ID, "Update approvals require the dedicated updater. Stop this chat bridge and start the updater to approve an update.")
+                    if shared:
+                        DECISION_FILE.write_text(text, encoding="utf-8")
+                        send(CHAT_ID, "Got it. Passing that to the updater.")
+                    else:
+                        send(CHAT_ID, "Send update approvals to your Echo updater bot, not the chat bot.")
                     continue
                 try:
                     spoken = bool(msg.get("voice"))
@@ -143,7 +145,8 @@ def main():
                             send(CHAT_ID, "Sorry, I couldn't hear anything in that voice note.")
                             continue
                     if not text or text.startswith("/start"):
-                        send(CHAT_ID, "Echo connected. Send a text or voice note to chat.")
+                        send(CHAT_ID, "Echo connected. Text me or send a voice note. "
+                                      "/callme rings your phone, /new starts a fresh chat.")
                         continue
                     if text.startswith("/callme"):
                         import echo_phone
