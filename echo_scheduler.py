@@ -22,6 +22,7 @@ import echo_opusclip
 import echo_brain
 import echo_log
 import echo_backup
+import echo_health
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -353,6 +354,16 @@ def run_backup():
         run_in_background("Backup", job)
 
 
+def run_weekly_health(schedule):
+    """Every Sunday from 10 AM: Echo checks every part of itself and texts the result."""
+    now = current_time()
+    if now.weekday() != 6 or now.hour < 10 or schedule.get("last_health") == today():
+        return
+    schedule["last_health"] = today()
+    save_schedule(schedule)
+    run_in_background("Health check", lambda: send_message(echo_health.report()))
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -445,6 +456,7 @@ def run_daily_schedule():
     run_opusclip_check()
     run_error_report(schedule)
     run_backup()
+    run_weekly_health(schedule)
 
     now = current_time().strftime("%H:%M")
 
