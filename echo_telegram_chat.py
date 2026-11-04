@@ -407,6 +407,14 @@ def handle_command(text):
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_ceo.handle, text) or "Send /plan for this week's plan."),
                          daemon=True).start()
         return True
+    if lower.startswith("/getvoice") or re.search(r"\b(better|nicer|natural|new) voice\b", lower):
+        which = "british" if "brit" in lower else "american"
+        send(CHAT_ID, f"🗣️ Getting a free natural {which.title()} voice (about 85 MB). I'll tell you when it's ready.")
+
+        def get_voice():
+            send(CHAT_ID, _safe_text(echo_voice.setup_voice, which, lambda m: None))
+        threading.Thread(target=get_voice, daemon=True).start()
+        return True
     if lower.startswith("/health") or re.search(r"\b(health ?check|how are you running|are you (ok|okay|working))\b", lower):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_health.report)), daemon=True).start()
@@ -645,6 +653,7 @@ def handle_command(text):
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
              "• /plan - the CEO's plan for this week from your goals · /done 2 - tick off task 2\n"
+             "• /getvoice - a free natural voice for my voice notes (/getvoice british)\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"

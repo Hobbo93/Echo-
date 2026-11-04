@@ -14,7 +14,7 @@ MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_scheduler.py", "echo_telegram_approved_updater.py",
            "echo_telegram_chat.py", "echo_updater.py", "echo_telegram.py",
            "echo_content.py", "echo_automation.py",
-           "echo_leads.py", "echo_memory.py", "echo_approvals.py",
+           "echo_leads.py", "echo_memory.py",
            "echo_setup.py", "echo_start.py", "echo_voice.py", "echo_phone.py"]
 def check_ollama():
     """Is Ollama running, and is Echo's model pulled?"""

@@ -12,7 +12,7 @@ in its own window via `echo_start.py`, wrapped by `echo_keepalive.py` (auto rest
 
 ## Shared pieces
 - Config/secrets: `%USERPROFILE%\.echo_telegram.json` (+ env vars). Read with small `_settings()`/`_cfg()` helpers.
-- Approvals: Yes/No over Telegram or phone; pending JSON files per module (e.g. `shopify_pending.json`).
+- Approvals: `echo_employees.request_approval` (echo_approvals.json) and Yes/No over Telegram or phone; pending JSON files per module (e.g. `shopify_pending.json`).
 - AI model: `echo_brain.model()` / `fast_model()` (phone) / `vision_model()`; settings in `~/.echo_brain.json`; `/brain` picks small/medium(qwen2.5:7b)/large(gemma3:12b) from RAM + GPU VRAM. Never hard-code a model.
 - Memory: `echo_memory.py` (SQLite `echo_memory.db`: `memories` + FTS5 `memories_fts`, `turns`, `meta`).
   `echo_personality.persona(spoken, message)` adds relevant memories to prompts.

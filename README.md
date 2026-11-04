@@ -51,6 +51,15 @@ Say "search youtube for dog grooming tips", "google cheap dog beds", "open my sh
 
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.
 
+## Looking after itself (free)
+
+- **Plan:** set goals ("my goal is $3,000 a month from websites"). The CEO turns them into a weekly plan with a job for each employee, sends today's top 3 each morning at 8:30, and research tasks go straight to the Research Agent. `/plan`, `/plan new`, `/done 2`.
+- **Problems:** anything that goes wrong is written to `Echo_logs\errors.log`. From 8 AM, if something broke, Echo texts you a short list. `/errors` shows the last 3 days.
+- **Health check:** every Sunday at 10 AM (or `/health`), Echo checks its parts, AI, connections, problems, backups and disk space, with a fix for anything wrong.
+- **Backups:** every night Echo zips its memory, records and settings (never your keys or passwords) into `Echo_backups` in OneDrive, Dropbox or Google Drive if you have one, otherwise Documents. The last 14 are kept. `/backup` backs up now.
+- **Natural voice:** `/getvoice` downloads Piper, a free natural voice, for Echo's voice notes (`/getvoice british` for a British one).
+- **No jams:** research and summaries wait while you're talking to Echo, so chats and phone calls always get the AI first.
+
 ## A smarter brain (free)
 
 Send `/brain` on Telegram. Echo checks your PC's memory and graphics card and recommends the best free AI model it can run. `/brain upgrade` downloads it (it can take a while), tests it and switches every part of Echo over. `/brain small` goes back to the small, fast model. Phone calls keep a fast model unless your PC has a good graphics card.
