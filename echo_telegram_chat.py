@@ -36,6 +36,7 @@ import echo_personality
 import echo_business
 import echo_memory
 import echo_growth
+import echo_opusclip
 
 
 def telegram(method, params=None):
@@ -232,6 +233,32 @@ def handle_command(text):
             if reply and "Sent to your phone" not in reply:
                 send(CHAT_ID, reply)
         threading.Thread(target=mail, daemon=True).start()
+        return True
+    if (echo_opusclip.pending() and yes_no(text) and not echo_shopify.pending()
+            and not echo_trading.pending() and not echo_email.pending()):
+        if yes_no(text) == "no":
+            send(CHAT_ID, echo_opusclip.skip(), NO_KEYBOARD)
+            return True
+        send(CHAT_ID, "On it…", NO_KEYBOARD)
+
+        def do_opus():
+            try:
+                send(CHAT_ID, echo_opusclip.approve())
+            except Exception as exc:
+                send(CHAT_ID, "That did NOT go through: " + str(exc)[:300])
+        threading.Thread(target=do_opus, daemon=True).start()
+        return True
+    if re.match(r"^/(clips?|post|opus)\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def opus():
+            try:
+                reply = echo_opusclip.handle(text)
+            except Exception as exc:
+                reply = "OpusClip problem: " + str(exc)[:300]
+            if reply and "sent it to your phone" not in reply:
+                send(CHAT_ID, reply)
+        threading.Thread(target=opus, daemon=True).start()
         return True
     if echo_shopify.pending() and yes_no(text) and not echo_trading.pending():
         if yes_no(text) == "no":
@@ -494,6 +521,7 @@ def handle_command(text):
              "• enquiry <name>: <message> · /tickets · my goal is ...\n"
              "• /callme - I ring your phone\n"
              "• remember that ... · /memories - what I remember · /forget 12\n"
+             "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")

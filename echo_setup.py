@@ -30,6 +30,9 @@ SECTIONS = [
         ("gmail_address", "Your Gmail address"),
         ("gmail_app_password", "Google app password (16 letters)"),
     ]),
+    ("OpusClip (Content Creator makes clips and posts to YouTube/Instagram/TikTok) - see OPUSCLIP_SETUP.md", [
+        ("opusclip_api_key", "OpusClip API key (dashboard, bottom-left corner)"),
+    ]),
     ("Google Places (Leads Manager finds 20 businesses a day) - see LEADS_SETUP.md", [
         ("google_places_key", "Google Places API key"),
     ]),

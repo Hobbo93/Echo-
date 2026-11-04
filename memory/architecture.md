@@ -29,5 +29,6 @@ in its own window via `echo_start.py`, wrapped by `echo_keepalive.py` (auto rest
 | Google Places | echo_leads.py | built, needs key |
 | Twilio | echo_phone.py | built, needs account |
 | Roblox Studio (local plugin polls 127.0.0.1) | echo_roblox.py | built |
-| OpusClip API (Pro plan, beta; YouTube/IG/TikTok linked there) | — | not built yet |
+| OpusClip API (Bearer key; upload → project → clips → social copy → post/schedule) | echo_opusclip.py | built, owner must add API key |
 | Base44 | — | via Claude's connector only |
+| Growth: honesty, lessons, research (Google News RSS + Wikipedia) | echo_growth.py | built |

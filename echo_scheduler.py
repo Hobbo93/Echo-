@@ -18,6 +18,7 @@ import echo_trading
 import echo_business
 import echo_memory
 import echo_growth
+import echo_opusclip
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -286,6 +287,20 @@ def run_growth():
         print("Growth step skipped:", error)
 
 
+_last_opus_check = [0.0]
+
+
+def run_opusclip_check():
+    """Every 5 minutes: tell the owner when OpusClip has finished making clips."""
+    if time.time() - _last_opus_check[0] < 300:
+        return
+    _last_opus_check[0] = time.time()
+    try:
+        echo_opusclip.check_projects(notify=send_message)
+    except Exception as error:
+        print("OpusClip check skipped:", error)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -375,6 +390,7 @@ def run_daily_schedule():
     run_phone_checkins(schedule)
     run_memory_summaries()
     run_growth()
+    run_opusclip_check()
 
     now = current_time().strftime("%H:%M")
 

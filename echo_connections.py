@@ -70,10 +70,11 @@ def check_all(live=False):
     except Exception:
         vision = False
     add("Photos", "Vision model", vision, "Understands photos you send", "Send /getvision on Telegram.")
-    add("Content Creator + Video Editor", "OpusClip", False,
-        "Clipping and posting to YouTube, TikTok and Instagram",
-        "OpusClip has no public API Echo can log into, so Echo drafts ideas and captions here; "
-        "the clipping and posting runs through Claude with your OpusClip connection.")
+    import echo_opusclip
+    add("Content Creator + Video Editor", "OpusClip", echo_opusclip.is_configured(),
+        "Makes short clips and posts them to YouTube, Instagram and TikTok after your Yes",
+        "OPUSCLIP_SETUP.md, then connect_echo.bat (OpusClip API key from the dashboard, bottom left).",
+        echo_opusclip.test)
     add("Web Designer", "Base44", False, "Builds the websites for leads",
         "Base44 has no API Echo can use from the PC, so Echo prepares each lead's folder and "
         "Claude builds the site in Base44 with your connection.")
