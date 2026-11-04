@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Brand Studio + video finder built; content engine (task 9) not started yet",
+  "checkpoint": "/connect built; owner needs to run /connect 1-3",
   "next_actions": [
-    "Merge PR with Brand Studio + finder",
-    "Content engine: morning trends (Google Trends RSS AU works) + 3 video ideas; weekly YouTube views (channel RSS needs consent cookie - test again)"
+    "Office daily jobs once connected (Shopify daily report, content engine)",
+    "Owner: /connect 1 (OpusClip), 2 (Shopify), 3 (Gmail)"
   ],
   "updated": "2026-11-04"
 }

@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 /connect (echo_connect.py): Telegram wizard per account (OpusClip, Shopify, Gmail, Alpaca) with steps, saves keys to .echo_telegram.json, deletes the pasted message, live test; secret-looking messages never reach the AI; not-connected messages point to /connect N
 - 2026-11-04 Video finder (echo_finder.py): 'find videos about X' scrapes YouTube search (ytInitialData, no key) → top 5 links; 'clip 2'/'clip it' → OpusClip Yes flow; pasted TikTok/IG/FB/YouTube links remembered; 'open 2' plays on PC. Brand Studio (echo_brand.py) also in this PR
 - 2026-11-04 Website sales machine: free OpenStreetMap leads (Overpass mirrors, skips chains, rotates 5 southern Adelaide areas) when no Google key; Google photos cut to 1/lead (free tier); echo_sales.py: 'sell <biz>' pitch + preview HTML site sent as Telegram document, price setting, /sales scoreboard, 9 AM follow-up nudge, Monday scoreboard; 'sell AAPL' still goes to trading
 - 2026-11-04 Catch-up: Telegram Echo answers messages sent while the PC was off (24 h, last 5; old Yes/No/button replies skipped). Autostart: echo_start writes Startup\Echo.bat with the real folder each launch and renames old Echo startup .bat files to .old

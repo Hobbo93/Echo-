@@ -43,6 +43,7 @@ import echo_tradeshot
 import echo_sales
 import echo_brand
 import echo_finder
+import echo_connect
 import echo_brain
 import echo_log
 import echo_backup
@@ -240,9 +241,27 @@ def _safe_text(fn, *args, **kwargs):
         return "That didn't work: " + str(exc)[:300]
 
 
+_current = {"msg_id": None}  # the message being handled, so a pasted key can be deleted
+
+
+def _delete_current():
+    if _current["msg_id"]:
+        try:
+            telegram("deleteMessage", {"chat_id": CHAT_ID, "message_id": _current["msg_id"]})
+        except Exception as exc:
+            echo_log.error("delete key message", exc)
+
+
 def handle_command(text):
     """Photo and approval commands. Returns True if the message was handled."""
     lower = text.lower().strip()
+    connect = echo_connect.handle(text)  # /connect, and the keys pasted while connecting
+    if connect:
+        reply, delete = connect
+        if delete:
+            _delete_current()
+        send(CHAT_ID, reply)
+        return True
     if PENDING_FILE.exists() and shared:
         choice = yes_no(text)
         if choice:
@@ -710,6 +729,7 @@ def handle_command(text):
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
              "• /plan - the CEO's plan for this week from your goals · /done 2 - tick off task 2\n"
              "• /getvoice - a free natural voice for my voice notes (/getvoice british)\n"
+             "• /connect - link your accounts (OpusClip→YouTube/TikTok/Instagram, Shopify, Gmail, trading) from your phone\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
@@ -731,6 +751,7 @@ def _safe(fn):
 
 def handle_message(msg):
     """Answer one Telegram message (text, voice note or photo)."""
+    _current["msg_id"] = msg.get("message_id")
     text = msg.get("text", "").strip()
     doc = msg.get("document") or {}
     is_photo = bool(msg.get("photo")) or str(doc.get("mime_type", "")).startswith("image/")
@@ -768,6 +789,11 @@ def handle_message(msg):
             history.clear()
             last_photo.clear()
             send(CHAT_ID, "Started a fresh conversation.")
+            return
+        if echo_connect.looks_like_secret(text):  # never send a key or password to the AI or its memory
+            _delete_current()
+            send(CHAT_ID, "🔒 That looked like a password or key, so I deleted it and didn't save it anywhere. "
+                          "To connect an account, send /connect.")
             return
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         reply = ask_echo(text, spoken)
