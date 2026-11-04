@@ -37,6 +37,8 @@ Other tools you can run by hand:
 
 Echo never publishes, trades, spends money or contacts anyone without your approval.
 
+**Chart screenshots:** send Echo a screenshot of a chart on Telegram with "what do I do?" or the ticker (e.g. "NVDA") as the caption. The Trading Analyst reads it, runs Echo's analysis on live prices, and sends back the plan plus a chart with the entry (blue), stop-loss (red) and target (green). It never places a trade from a screenshot.
+
 **Trading stop button:** say "stop trading" (or `/stoptrading`) and Echo pauses all trading at once: no new trade ideas, no new buys, and any waiting idea is cancelled. Open trades keep their stop-loss and target. "sell everything" sells every open position (asks Yes first). "resume trading" turns it back on.
 
 ## Echo on your PC (from Telegram)

@@ -1,9 +1,9 @@
 {
   "objective": "Build Echo's OpusClip connection (YouTube/Instagram/TikTok posting) when the owner says go",
-  "checkpoint": "Trading stop button built",
+  "checkpoint": "PR #7 holds stop-trading + chart screenshots, waiting for owner's go",
   "next_actions": [
-    "Owner installs updates, /getvision, tries /guide",
-    "Owner connects Shopify/OpusClip/Gmail keys"
+    "Owner says go to merge PR #7",
+    "Owner installs updates, /getvision"
   ],
   "updated": "2026-11-04"
 }

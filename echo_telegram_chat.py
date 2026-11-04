@@ -40,6 +40,7 @@ import echo_opusclip
 import echo_router
 import echo_computer
 import echo_guide
+import echo_tradeshot
 
 
 def telegram(method, params=None):
@@ -197,6 +198,18 @@ def handle_photo(msg):
         reply = echo_shopify.handle(question, images=[path], force=True)
         if reply and "sent this to your phone" not in reply:
             send(CHAT_ID, reply)
+        return
+    if echo_tradeshot.wants_trade_read(question):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        reply, png = echo_tradeshot.analyse_screenshot(data, question)
+        if png:
+            chart = Path(tempfile.gettempdir()) / "echo_trade_read.png"
+            chart.write_bytes(png)
+            try:
+                _upload("sendPhoto", "photo", CHAT_ID, chart, "image/png", "Echo's plan: blue = entry, red = stop-loss, green = target")
+            except Exception:
+                pass
+        send(CHAT_ID, reply)
         return
     if not echo_photos.has_vision():
         send(CHAT_ID, "Saved your photo as " + path.name + ".\n\n" + echo_photos.need_vision_message())
@@ -590,6 +603,7 @@ def handle_command(text):
              "• /money · income 500 website for Joe · expense 30 OpusClip\n"
              "• enquiry <name>: <message> · /tickets · my goal is ...\n"
              "• /callme - I ring your phone\n"
+             "• send a chart screenshot with 'what do I do?' (or the ticker) - the Trading Analyst reads it\n"
              "• stop trading - pause all trading at once · sell everything · resume trading\n"
              "• remember that ... · /memories - what I remember · /forget 12\n"
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"

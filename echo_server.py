@@ -22,6 +22,7 @@ import echo_business
 import echo_memory
 import echo_growth
 import echo_router
+import echo_tradeshot
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -404,7 +405,10 @@ def chat():
                 }), 409
             for blob in images:
                 echo_photos.save_photo(blob, "from_you")
-            reply = echo_photos.look(images, message, history)
+            if echo_tradeshot.wants_trade_read(message, employee["name"]):
+                reply, _png = echo_tradeshot.analyse_screenshot(images[0], message)
+            else:
+                reply = echo_photos.look(images, message, history)
         else:
             reply = ask_ollama(
                 message,
