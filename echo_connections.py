@@ -59,9 +59,10 @@ def check_all(live=False):
     add("Sales Agent + Support", "Your Gmail", echo_email.is_configured(),
         "Sends outreach and replies from your Gmail after your Yes",
         "EMAIL_SETUP.md, then connect_echo.bat (Gmail address + app password).", echo_email.test)
-    add("Website and Leads Manager", "Google Places", c.get("google_places_key"),
-        "Finds 20 local businesses a day with phone, email and photos",
-        "LEADS_SETUP.md, then connect_echo.bat (Google Places key).")
+    add("Website and Leads Manager", "Lead finder", True,
+        "Finds 20 local businesses a day: " + ("Google Places (phones, photos)" if c.get("google_places_key")
+                                               else "free from OpenStreetMap (add a Google key for more phone numbers)"),
+        "")
     add("Phone line", "Twilio", c.get("twilio_account_sid") and c.get("twilio_auth_token"),
         "Rings you for approvals and briefings", "PHONE_SETUP.md, then connect_echo.bat (say y to phone calls).")
     try:

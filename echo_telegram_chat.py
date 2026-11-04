@@ -40,6 +40,7 @@ import echo_router
 import echo_computer
 import echo_guide
 import echo_tradeshot
+import echo_sales
 import echo_brain
 import echo_log
 import echo_backup
@@ -253,6 +254,21 @@ def handle_command(text):
         reply = _safe_text(echo_trading.handle, text)
         sell_all = (echo_trading.pending() or {}).get("side") == "sell_all"
         send(CHAT_ID, reply, echo_trading.TRADE_KEYBOARD if sell_all else None)
+        return True
+    if not yes_no(text) and echo_sales.wants(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def do_sales():
+            result = _safe_text(echo_sales.handle, text) or ("Say 'sell <business>' or /sales.", None)
+            reply, path = result if isinstance(result, tuple) else (result, None)
+            send(CHAT_ID, reply[:4000])
+            if path:
+                try:
+                    _upload("sendDocument", "document", CHAT_ID, path, "text/html", "Preview website: open it on your phone")
+                except Exception as exc:
+                    echo_log.error("send preview", exc)
+                    send(CHAT_ID, f"(Couldn't attach the preview: it's saved at {path})")
+        threading.Thread(target=do_sales, daemon=True).start()
         return True
     if echo_email.pending() and yes_no(text) and not echo_shopify.pending() and not echo_trading.pending():
         if yes_no(text) == "no":
@@ -604,11 +620,7 @@ def handle_command(text):
         if result:
             send(CHAT_ID, echo_leads.summary(result))
             return True
-        if not echo_leads.API_KEY:
-            send(CHAT_ID, "I need a Google Places API key to find businesses. Run setup_echo.bat on "
-                          "your PC and paste it in (LEADS_SETUP.md shows how to get one).")
-            return True
-        send(CHAT_ID, "Finding 20 new local businesses, with phones, emails and photos. "
+        send(CHAT_ID, "Finding 20 new local businesses" + ("" if echo_leads.API_KEY else " (free, from OpenStreetMap)") + ". "
                       "This takes a few minutes; I'll message you the list.")
 
         def run():
@@ -633,7 +645,8 @@ def handle_command(text):
              "• /screenshot - photo of your PC screen\n"
              "• /photos and /photo 1 - get saved photos back\n"
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
-             "• /leads - today's 20 businesses (/findleads gets new ones)\n"
+             "• /leads - today's 20 businesses (/findleads gets new ones) · sell <business> - pitch + free preview site\n"
+             "• /sales - who said yes · my website price is $499\n"
              "• /trade analyse BHP.AX - chart read + risk plan\n"
              "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
              "• /connections - what every office is connected to, and what's missing\n"

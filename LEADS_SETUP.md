@@ -1,4 +1,10 @@
-# Echo lead finder: Google Places key (one-time, about 5 minutes)
+# Echo lead finder
+
+**You don't need anything to start:** with no key, Echo finds leads for free from OpenStreetMap (no card). Phone numbers are often missing there; each lead has a map link to look them up.
+
+Optional: a Google Places key adds more phone numbers and photos.
+
+## Optional: Google Places key (about 5 minutes)
 
 Echo's **Website and Leads Manager** finds 20 new southern Adelaide businesses every day at 3 PM (or when you send `/findleads` on Telegram). For each one it saves the phone, address, opening hours, rating, whether they have a website, an email if their own website publishes one, 2 photos, and a ready-to-build `brief.md` for Base44. Everything goes in `Echo_leads` in your user folder; `leads.csv` opens in Excel.
 
@@ -14,7 +20,7 @@ Echo's **Website and Leads Manager** finds 20 new southern Adelaide businesses e
 Double-click `setup_echo.bat` in your Echo folder. Press Enter to keep your existing settings, and paste the key when it asks for the **Google Places API key**. Then restart Echo with `start_echo`.
 
 ## What it costs
-Google gives a free allowance each month: 1,000 detailed searches and 1,000 photos. A daily run uses about 7 to 15 searches and 40 photos, so searches stay free. Photos come to about 1,200 a month, which is roughly **US$1–2 a month** above the free allowance at Google's current prices. You can set a budget alert in Google Cloud under **Billing → Budgets**.
+Google gives a free allowance each month: 1,000 detailed searches and 1,000 photos. A daily run uses about 7 to 15 searches and 40 photos, so searches stay free. Echo now saves 1 photo per business (about 600 a month), which stays inside the free allowance. You can set a budget alert in Google Cloud under **Billing → Budgets**.
 
 ## Good to know
 - Emails only appear when the business's own website publishes one. Businesses with no website (the best leads) usually have phone numbers only.

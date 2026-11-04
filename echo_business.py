@@ -127,8 +127,8 @@ def _find(p, name):
 def pipeline_text():
     p = _pipeline()
     if not p:
-        return ("Your pipeline is empty. Leads come in daily from the Website and Leads Manager "
-                "once the Google Places key is set (LEADS_SETUP.md).")
+        return ("Your pipeline is empty. Leads come in daily at 3 PM from the Website and Leads Manager "
+                "(free), or send /findleads to get some now.")
     lines = ["SALES PIPELINE"]
     for stage in STAGES:
         names = [l["name"] for l in p.values() if l["stage"] == stage]
@@ -144,7 +144,10 @@ def pitch(name):
     if not lead:
         return f"I can't find '{name}' in the pipeline. Say 'pipeline' to see the businesses."
     facts = (f"Business: {lead['name']} ({lead['category']}), {lead['address']}. Website: "
-             f"{lead['website'] or 'none'}. Why they're a fit: {'; '.join(lead['reasons'])}.")
+             f"{lead['website'] or 'none'}. Why they're a fit: {'; '.join(lead['reasons'])}."
+             + (f" Tailen's price: websites from {load('sales_settings', {}).get('price')}." if
+                load("sales_settings", {}).get("price") else "")
+             + " Mention a free preview website of their business is ready to show them.")
     try:
         text = ask_ai("Write three short, friendly, personalised outreach drafts for this local Adelaide "
                       "business offering a modern website (and optionally an AI receptionist that answers "
@@ -344,7 +347,7 @@ def status_text():
         echo_log.error("echo_business", _exc)
     try:
         import echo_leads
-        lines.append(("🟢" if echo_leads.API_KEY else "⚪") + " Lead finder: " + ("on" if echo_leads.API_KEY else "needs Google Places key"))
+        lines.append("🟢 Lead finder: " + ("on (Google Places)" if echo_leads.API_KEY else "on (free, OpenStreetMap)"))
     except Exception as _exc:
         echo_log.error("echo_business", _exc)
     try:
@@ -523,7 +526,7 @@ def office_feed():
          [f"{len(p)} businesses in the pipeline" if p else "Waiting for today's leads",
           f"{counts['contacted']} contacted, {counts['meeting']} meetings, {counts['won']} won" if p else ""] + done("Sales Agent"),
          ["Follow-ups are due" if fu.startswith("Follow-ups due") else "",
-          "" if p else "No leads yet: the Leads Manager needs the Google Places key"],
+          "" if p else "No leads yet: they arrive at 3 PM (or send /findleads)"],
          [("Who's next on the call list?", f"{counts['new']} fresh leads, start with the ones with no website." if p else "Nobody yet. We need leads first."),
           ("Did we hear back from anyone?", "Follow-ups are due, we should nudge them." if fu.startswith("Follow-ups due") else "Not yet, give it a couple of days."),
           ("Any wins this month?", f"{counts['won']} so far!" if counts["won"] else "Not yet. Let's get the first one.")])
@@ -535,8 +538,8 @@ def office_feed():
     dept("webdesign",
          [f"{leads['researched']} businesses found on {leads['date']}" if leads else "Ready to find 20 local businesses a day",
           f"{maps} Roblox maps built" if maps else "Roblox Map Builder is ready for requests"] + done("Website and Leads Manager"),
-         ["" if key else "Needs the Google Places key to find leads (LEADS_SETUP.md)"],
-         [("Got any new businesses for us?", "Twenty fresh ones today, briefs are ready for Base44." if leads else "Can't search yet, we still need that Google key."),
+         ["" if key else "Using free OpenStreetMap leads (a Google key would add more phone numbers)"],
+         [("Got any new businesses for us?", "Twenty fresh ones today, briefs are ready for Base44." if leads else "Not yet today. They come at 3 PM."),
           ("Which ones need a site the most?", "The busy ones with great reviews and no website."),
           ("Anyone asked for a Roblox map?", f"We've built {maps} so far." if maps else "Not yet, I'm ready when Tailen is.")])
 

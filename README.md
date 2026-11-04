@@ -51,6 +51,14 @@ Say "search youtube for dog grooming tips", "google cheap dog beds", "open my sh
 
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.
 
+## Selling websites (free)
+
+- **Leads:** every day at 3 PM (or `/findleads`) Echo finds 20 local southern Adelaide businesses that need a website. With no Google key it uses OpenStreetMap, which is completely free with no card. A Google key adds more phone numbers and photos, and stays inside Google's free allowance.
+- **Sell:** say `sell Pizza at Christies`. Echo writes a text, an email and a phone opener, and builds a **free preview website of their business** that it sends to your phone, ready to show the owner. `preview <name>` makes just the site.
+- **Price:** `my website price is $499` puts your price in every pitch.
+- **Follow up:** every morning at 9, Echo lists who's due a follow-up. `mark <name> won` when they say yes. `/sales` (and every Monday) shows the scoreboard.
+- Echo never contacts businesses itself: you send the messages.
+
 ## Looking after itself (free)
 
 - **Plan:** set goals ("my goal is $3,000 a month from websites"). The CEO turns them into a weekly plan with a job for each employee, sends today's top 3 each morning at 8:30, and research tasks go straight to the Research Agent. `/plan`, `/plan new`, `/done 2`.

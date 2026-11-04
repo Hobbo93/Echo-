@@ -29,7 +29,7 @@ LOCATION = "southern Adelaide, South Australia"
 DAILY_RESEARCH_LIMIT = 20
 TOP_LEADS = 5
 REPORT_HOUR = 15  # 3 PM Adelaide time
-PHOTOS_PER_LEAD = 2  # keeps Google photo use near the free monthly allowance
+PHOTOS_PER_LEAD = 1  # 20 leads a day x 1 photo stays inside Google's free 1,000 photos a month
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 ROOT = Path(__file__).resolve().parent
@@ -142,6 +142,97 @@ def search_businesses(query, limit=20):
     return leads
 
 
+# ==========================================
+# FREE SOURCE: OpenStreetMap (no key, no card) - used when there's no Google key
+# ==========================================
+
+OVERPASS = ["https://overpass.private.coffee/api/interpreter", "https://overpass-api.de/api/interpreter",
+            "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
+# Southern Adelaide, in small boxes (south, west, north, east) so each search stays quick.
+AREAS = {
+    "Christies Beach / Morphett Vale": (-35.20, 138.46, -35.08, 138.56),
+    "Reynella / Hallett Cove": (-35.10, 138.48, -35.02, 138.58),
+    "Noarlunga / Seaford": (-35.24, 138.46, -35.15, 138.55),
+    "Aldinga / McLaren Vale": (-35.30, 138.45, -35.18, 138.56),
+    "Happy Valley / Aberfoyle Park": (-35.10, 138.55, -35.02, 138.64),
+}
+OSM_KINDS = ('nwr["shop"~"^(hairdresser|beauty|barber|bakery|butcher|florist|car_repair|pet|pet_grooming|tyres|clothes|'
+             'massage|tattoo|bicycle|hardware|gift)$"]["name"]{box};'
+             'nwr["amenity"~"^(cafe|restaurant|fast_food|dentist|veterinary|car_wash|childcare)$"]["name"]{box};'
+             'nwr["craft"~"^(electrician|plumber|carpenter|builder|painter|gardener|roofer|tiler)$"]["name"]{box};')
+
+
+def _osm_query(box):
+    b = "(%s,%s,%s,%s)" % box
+    return "[out:json][timeout:50];(" + OSM_KINDS.replace("{box}", b) + ");out center tags 300;"
+
+
+def _overpass(query):
+    last = None
+    for url in OVERPASS:
+        try:
+            with _http(url, urllib.parse.urlencode({"data": query}).encode(),
+                       {"User-Agent": "EchoPersonalAssistant/1.0"}, timeout=90) as r:
+                return json.load(r).get("elements", [])
+        except (OSError, ValueError) as exc:  # busy server: try the next one
+            last = exc
+    raise RuntimeError(f"OpenStreetMap search is busy right now ({last}). Try /findleads again later.")
+
+
+def _osm_lead(el, area):
+    t = el.get("tags", {})
+    kind = t.get("shop") or t.get("amenity") or t.get("craft") or "business"
+    street = " ".join(x for x in (t.get("addr:housenumber"), t.get("addr:street")) if x)
+    suburb = t.get("addr:suburb") or t.get("addr:city") or area.split(" / ")[0]
+    website = t.get("website") or t.get("contact:website") or t.get("url") or ""
+    social = t.get("contact:facebook") or t.get("facebook") or t.get("contact:instagram") or ""
+    lat = el.get("lat") or el.get("center", {}).get("lat")
+    lon = el.get("lon") or el.get("center", {}).get("lon")
+    name = t.get("name", "Unknown")
+    maps = (f"https://www.google.com/maps/search/{urllib.parse.quote_plus(name + ' ' + suburb + ' SA')}")
+    return {
+        "id": f"osm:{el.get('type')}/{el.get('id')}",
+        "name": name,
+        "category": kind.replace("_", " ").title(),
+        "address": ", ".join(x for x in (street, suburb, "SA") if x),
+        "website": website or social,
+        "phone": t.get("phone") or t.get("contact:phone") or "",
+        "email": t.get("email") or t.get("contact:email") or "",
+        "rating": None,
+        "reviews": 0,
+        "status": "",
+        "maps_url": maps,
+        "osm_url": f"https://www.openstreetmap.org/{el.get('type')}/{el.get('id')}",
+        "hours": [t["opening_hours"]] if t.get("opening_hours") else [],
+        "summary": "",
+        "review_quotes": [],
+        "_photos": [],
+        "photos": [],
+        "search": f"{kind} in {area}",
+        "lat": lat, "lon": lon,
+    }
+
+
+def search_osm(seen, limit=DAILY_RESEARCH_LIMIT, fetch=None):
+    """Free lead search: independent local businesses from OpenStreetMap, rotating through areas."""
+    fetch = fetch or _overpass
+    pool = {}
+    start = int(datetime.now(TIMEZONE).strftime("%j")) % len(AREAS)  # a different area first each day
+    names = list(AREAS)
+    for area in names[start:] + names[:start]:
+        for el in fetch(_osm_query(AREAS[area])):
+            t = el.get("tags", {})
+            if any(k.startswith("brand") for k in t):  # chains already have websites
+                continue
+            lead = _osm_lead(el, area)
+            if lead["id"] in seen or lead["name"].lower() in {p["name"].lower() for p in pool.values()}:
+                continue
+            pool[lead["id"]] = score_lead(lead)
+        if sum(1 for lead in pool.values() if lead["score"] >= 50) >= limit:
+            break
+    return list(pool.values())
+
+
 def score_lead(lead):
     """Higher score = better website / AI receptionist opportunity (a guess, not a fact)."""
     score, reasons = 0, []
@@ -229,7 +320,8 @@ def write_brief(lead, folder):
              f"- Phone: {lead['phone'] or 'not listed'}",
              f"- Email: {lead['email'] or 'not published'}",
              f"- Current website: {lead['website'] or 'none'}",
-             f"- Google rating: {lead['rating']} from {lead['reviews']} reviews",
+             (f"- Google rating: {lead['rating']} from {lead['reviews']} reviews" if lead.get("rating")
+              else "- Google rating: check the map link"),
              f"- Google Maps: {lead['maps_url']}", ""]
     if lead["summary"]:
         lines += [f"About: {lead['summary']}", ""]
@@ -265,11 +357,11 @@ def _seen():
 
 def research_leads(limit=DAILY_RESEARCH_LIMIT):
     """Find `limit` NEW businesses, collect their details and photos, rank them."""
-    if not API_KEY:
-        raise RuntimeError("Add your Google Places API key first (run setup_echo.bat). No research was done.")
     seen = _seen()
     pool = {}
-    for query in SEARCH_TERMS:
+    if not API_KEY:  # free route: OpenStreetMap
+        pool = {lead["id"]: lead for lead in search_osm(seen, limit)}
+    for query in (SEARCH_TERMS if API_KEY else []):
         for lead in search_businesses(query, 20):
             key = lead["id"] or lead["name"]
             if lead["status"] in ("CLOSED_PERMANENTLY", "CLOSED_TEMPORARILY") or key in seen:
@@ -300,7 +392,9 @@ def research_leads(limit=DAILY_RESEARCH_LIMIT):
         "top_leads": leads[:TOP_LEADS],
         "all_leads": leads,
         "folder": str(day),
-        "note": ("From public Google listings. Emails come only from the business's own website. "
+        "note": (("From public Google listings. " if API_KEY else
+                  "From OpenStreetMap (free). Phone numbers are often missing: tap the map link to look them up. ")
+                 + "Emails come only from the business's own website. "
                  "Verify before acting; Echo never contacts businesses without your approval."),
     }
     day.mkdir(parents=True, exist_ok=True)
