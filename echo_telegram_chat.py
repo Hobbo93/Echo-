@@ -44,6 +44,7 @@ import echo_sales
 import echo_brand
 import echo_finder
 import echo_connect
+import echo_office_jobs
 import echo_brain
 import echo_log
 import echo_backup
@@ -507,6 +508,27 @@ def handle_command(text):
         import echo_phone
         send(CHAT_ID, echo_phone.set_my_phone(m.group(1)))
         return True
+    office_job = echo_office_jobs.handle(text)
+    if office_job:
+        send(CHAT_ID, office_job)
+        return True
+    if lower.startswith(("/ideas", "/store", "/inbox")) or re.match(r"^(video|content) ideas\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def office_now():
+            if lower.startswith("/store"):
+                send(CHAT_ID, _safe_text(echo_office_jobs.store_report) or echo_shopify.NOT_CONNECTED)
+            elif lower.startswith("/inbox"):
+                if not echo_email.is_configured():
+                    send(CHAT_ID, echo_email.NOT_CONNECTED)
+                    return
+                n = _safe_text(echo_office_jobs.check_inbox, notify=lambda m: send(CHAT_ID, m))
+                send(CHAT_ID, str(n) if isinstance(n, str) else
+                     (f"📬 {n} new customer email{'s' if n != 1 else ''}." if n else "📭 No new customer emails."))
+            else:
+                send(CHAT_ID, _safe_text(echo_office_jobs.content_ideas))
+        threading.Thread(target=office_now, daemon=True).start()
+        return True
     if lower.startswith("/learned"):
         send(CHAT_ID, echo_growth.describe_learning())
         return True
@@ -729,6 +751,7 @@ def handle_command(text):
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
              "• /plan - the CEO's plan for this week from your goals · /done 2 - tick off task 2\n"
              "• /getvoice - a free natural voice for my voice notes (/getvoice british)\n"
+             "• /ideas - today's video ideas · /store - store report · /inbox - new customer emails · send reply 3\n"
              "• /connect - link your accounts (OpusClip→YouTube/TikTok/Instagram, Shopify, Gmail, trading) from your phone\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"

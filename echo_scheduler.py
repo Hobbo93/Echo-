@@ -25,6 +25,7 @@ import echo_backup
 import echo_health
 import echo_ceo
 import echo_sales
+import echo_office_jobs
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -400,6 +401,31 @@ def run_sales(schedule):
         echo_log.error("sales reminder", exc)
 
 
+_last_inbox_check = [0.0]
+
+
+def run_office_jobs(schedule):
+    """The offices' daily jobs: 7:30 video ideas, 8:45 store report, new customer emails every 15 min."""
+    now, day = current_time(), today()
+    if now.strftime("%H:%M") >= "07:30" and schedule.get("last_ideas") != day:
+        if run_in_background("Content ideas", lambda: send_message(echo_office_jobs.content_ideas())):
+            schedule["last_ideas"] = day
+            save_schedule(schedule)
+        return
+    if now.strftime("%H:%M") >= "08:45" and schedule.get("last_store_report") != day:
+        schedule["last_store_report"] = day
+        save_schedule(schedule)
+        try:
+            report = echo_office_jobs.store_report()
+            if report:
+                send_message(report)
+        except Exception as exc:
+            echo_log.error("store report", exc)
+    if time.time() - _last_inbox_check[0] >= 900:
+        if run_in_background("Inbox check", lambda: echo_office_jobs.check_inbox(notify=send_message)):
+            _last_inbox_check[0] = time.time()
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -492,6 +518,7 @@ def run_daily_schedule():
     run_weekly_health(schedule)
     run_ceo_plan(schedule)
     run_sales(schedule)
+    run_office_jobs(schedule)
 
     now = current_time().strftime("%H:%M")
 
