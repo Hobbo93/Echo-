@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "/connect built; owner needs to run /connect 1-3",
+  "checkpoint": "Office daily jobs built (content engine done except weekly YouTube stats)",
   "next_actions": [
-    "Office daily jobs once connected (Shopify daily report, content engine)",
-    "Owner: /connect 1 (OpusClip), 2 (Shopify), 3 (Gmail)"
+    "Owner: /connect 1-3, 'my channels are about ...'",
+    "Optional: weekly YouTube views report (channel RSS blocked by consent page; try with CONSENT cookie)"
   ],
   "updated": "2026-11-04"
 }

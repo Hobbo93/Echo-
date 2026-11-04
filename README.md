@@ -17,6 +17,15 @@ Send **/connect** on Telegram. Echo lists what's connected (🟢) and what isn't
 
 Every outside action still waits for your Yes. If Echo ever sees something that looks like a password or key in normal chat, it deletes it and never saves it. (`connect_echo.bat` on the PC still works too, and is the most private option.)
 
+## What the offices do by themselves every day
+
+- **7:30 AM, Content Creator:** what's trending in Australia, 3 video ideas (hook, plan, caption) and long YouTube videos on your topic you could clip ("clip 2"). Tell it your topic: "my channels are about funny animals". `/ideas` any time.
+- **8:30 AM, CEO:** today's top 3 from your weekly plan.
+- **8:45 AM, Shopify Manager** (once connected): latest orders and anything low on stock. `/store` any time.
+- **9 AM, Sales:** who's due a follow-up. **3 PM:** 20 new local businesses that need a website.
+- **Every 15 minutes, Customer Support** (once Gmail is connected): new customer emails become tickets with a heads-up. "reply 3" drafts an answer, and "send reply 3" emails it after your Yes. `/inbox` any time. Emails are never marked read, and newsletters are skipped.
+- **All day:** research every 90 minutes, chat summaries, and the evening review of how Echo talks to you.
+
 ## Talking to Echo
 
 - **On your PC:** in Echo HQ, press **📞 Call Echo** and just talk. Echo listens, answers out loud and keeps the conversation going. Tap **✋ Interrupt** to cut in, say "bye" or tap **Hang up** to finish. Use Chrome or Edge, and allow the microphone. (Chrome turns your speech into text using Google's servers; Echo's answers still come from your PC.)
