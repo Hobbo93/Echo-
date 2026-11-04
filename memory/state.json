@@ -1,8 +1,8 @@
 {
   "objective": "Merge the memory upgrade to main, then build the OpusClip connection once approved",
-  "checkpoint": "Echo growth system built and pushed (honesty, learning, research)",
+  "checkpoint": "Claude setup done except .claude/settings.json (owner adds it on GitHub)",
   "next_actions": [
-    "Owner: switch session to Accept edits so Claude can add .claude/ setup",
+    "Owner adds .claude/settings.json",
     "Owner approves PR to main",
     "OpusClip connection once approved"
   ],
