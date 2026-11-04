@@ -84,6 +84,41 @@ def is_configured():
     return all(s.values())
 
 
+def normalise_phone(raw):
+    """Australian mobile/landline (0414 123 456, 61414..., +61 414...) -> +61414123456, or '' if it isn't one."""
+    digits = re.sub(r"[^\d+]", "", raw or "")
+    if digits.startswith("+"):
+        num = "+" + re.sub(r"\D", "", digits)
+    elif digits.startswith("61") and len(digits) == 11:
+        num = "+" + digits
+    elif digits.startswith("0") and len(digits) == 10:
+        num = "+61" + digits[1:]
+    else:
+        return ""
+    return num if 11 <= len(num) <= 16 else ""
+
+
+def set_my_phone(raw):
+    """Save the owner's number on this PC (never in the code). Returns a reply."""
+    num = normalise_phone(raw)
+    if not num:
+        return "That doesn't look like a phone number. Send it like: my number is 0414 123 456"
+    try:
+        data = json.loads(CONFIG.read_text(encoding="utf-8-sig"))
+        data = data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        data = {}
+    data["my_phone"] = num
+    CONFIG.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    shown = num[:-6] + " " + num[-6:-3] + " " + num[-3:]
+    s = settings()
+    if s["sid"] and s["token"] and s["number"]:
+        return f"📱 Saved: Echo will ring {shown}. Send /callme to test it."
+    return (f"📱 Saved your number ({shown}) on the PC. Echo can't ring it yet: phone calls need a Twilio "
+            "phone number, which isn't set up (PHONE_SETUP.md). Twilio costs money (about AU$2 a month plus "
+            "calls). Free instead: send Echo a voice note and it replies with a voice note.")
+
+
 def public_url():
     try:
         return URL_FILE.read_text(encoding="utf-8").strip().rstrip("/")
