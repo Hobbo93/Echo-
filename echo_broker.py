@@ -80,6 +80,11 @@ def positions():
     return _api("GET", "/v2/positions")
 
 
+def close_all():
+    """Sell every position at market and cancel all open stop/target orders."""
+    return _api("DELETE", "/v2/positions?cancel_orders=true")
+
+
 def close_position(symbol):
     """Sell the whole position now: cancels its open stop/target orders first, then sells at market."""
     symbol = symbol.upper()

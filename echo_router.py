@@ -156,6 +156,8 @@ COMMANDS_HELP = (
     "- Email: \"email bob@example.com about ...\" · Trading: /trade propose · Research: /research add TOPIC\n"
     "- Is something connected? \"are you connected to shopify?\" runs a real check.\n"    "- On the PC: \"search youtube for ...\", \"google ...\", \"open my shopify admin\", /screen for a screenshot. "
     "Echo can open pages and show the screen, but can't click, type or take over the computer.\n"
+    "- Trading: \"stop trading\" pauses everything at once, \"sell everything\" sells all (asks Yes), "
+    "\"resume trading\" turns it back on.\n"
     "- Step-by-step help on the PC: \"/guide connect my shopify store\" (Echo looks at the screen and says where to click).\n"
     "Only say a service is connected if it's in the connected list above."
 )

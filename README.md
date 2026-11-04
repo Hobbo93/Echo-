@@ -37,6 +37,8 @@ Other tools you can run by hand:
 
 Echo never publishes, trades, spends money or contacts anyone without your approval.
 
+**Trading stop button:** say "stop trading" (or `/stoptrading`) and Echo pauses all trading at once: no new trade ideas, no new buys, and any waiting idea is cancelled. Open trades keep their stop-loss and target. "sell everything" sells every open position (asks Yes first). "resume trading" turns it back on.
+
 ## Echo on your PC (from Telegram)
 
 Say "search youtube for dog grooming tips", "google cheap dog beds", "open my shopify admin" or "open gmail", and Echo opens it on the PC and sends you a screenshot. `/screen` (or "show me my screen") sends a picture of the screen any time. Echo only opens web pages; it never clicks, types or enters passwords.

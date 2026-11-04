@@ -1,9 +1,9 @@
 {
   "objective": "Build Echo's OpusClip connection (YouTube/Instagram/TikTok posting) when the owner says go",
-  "checkpoint": "Guide mode built",
+  "checkpoint": "Trading stop button built",
   "next_actions": [
-    "Owner tries /getvision then /guide connect my shopify store",
-    "Owner adds .claude/settings.json on main"
+    "Owner installs updates, /getvision, tries /guide",
+    "Owner connects Shopify/OpusClip/Gmail keys"
   ],
   "updated": "2026-11-04"
 }
