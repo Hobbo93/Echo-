@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 echo_router.py: Telegram connection questions answered by live checks (no more guessed 'yes'); plain-English requests routed to real tools (OpusClip clip/post, Shopify, email); office chat answers connection questions the same way; COMMANDS_HELP in every prompt
 - 2026-11-04 OpusClip connection (echo_opusclip.py): /clip LINK|latest → Yes → project; scheduler checks every 5 min and sends numbered clips; /post N platforms [at time] → OpusClip social copy → Yes → post-tasks/publish-schedules; /clips /opus; setup + connections entry; 8 tests with fake API
 - 2026-11-04 PR #2 merged to main (memory, growth, night office, Claude workspace); PC installs after owner's Telegram Yes
 - 2026-11-04 Claude .claude/ setup: session-start hook (tested: installs .venv tools, 0.05 s when cached, prints briefing), explorer/reviewer/tester agents, /checkpoint skill. settings.json still needs the owner

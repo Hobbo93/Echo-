@@ -37,6 +37,7 @@ import echo_business
 import echo_memory
 import echo_growth
 import echo_opusclip
+import echo_router
 
 
 def telegram(method, params=None):
@@ -206,6 +207,14 @@ def handle_photo(msg):
     send(CHAT_ID, reply)
 
 
+def _safe_text(fn, *args, **kwargs):
+    """Run a tool and turn any crash into an honest message instead of silence."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        return "That didn't work: " + str(exc)[:300]
+
+
 def handle_command(text):
     """Photo and approval commands. Returns True if the message was handled."""
     lower = text.lower().strip()
@@ -224,6 +233,24 @@ def handle_command(text):
             send(CHAT_ID, echo_email.approve(), NO_KEYBOARD)
         except Exception as exc:
             send(CHAT_ID, "The email was NOT sent: " + str(exc)[:300], NO_KEYBOARD)
+        return True
+    routed = echo_router.route(text)
+    if routed and routed[0] == "connections":
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_router.answer_connections, text)),
+                         daemon=True).start()
+        return True
+    if routed and routed[0] in ("opus", "email"):
+        text = routed[1]
+        lower = text.lower()
+    if routed and routed[0] == "shopify":
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def store_request():
+            reply = _safe_text(echo_shopify.handle, text, force=True)
+            if reply and "sent this to your phone" not in reply:
+                send(CHAT_ID, reply)
+        threading.Thread(target=store_request, daemon=True).start()
         return True
     if echo_email.EMAIL_RE.match(text):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})

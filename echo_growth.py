@@ -157,8 +157,12 @@ def learned_text(lessons=3):
 
 def prompt_block():
     """Everything a system prompt needs from this module."""
+    try:
+        from echo_router import COMMANDS_HELP
+    except Exception:
+        COMMANDS_HELP = ""
     return "\n\n".join(p for p in (HONESTY_RULES, "What you're really connected to:\n" + capabilities(),
-                                   learned_text()) if p)
+                                   COMMANDS_HELP, learned_text()) if p)
 
 
 def check_reply(reply):

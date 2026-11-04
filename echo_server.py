@@ -21,6 +21,7 @@ import echo_trading
 import echo_business
 import echo_memory
 import echo_growth
+import echo_router
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -380,6 +381,10 @@ def chat():
                 reply = ("Finding 20 new local businesses with phones, emails and photos. It takes a "
                          "few minutes; ask me for 'my leads' shortly, or check Echo_leads in your user folder.")
             return jsonify({"reply": reply, "employee_id": employee_id, "employee": employee["name"]})
+
+        if not images and echo_router.is_connection_question(message):
+            return jsonify({"reply": echo_router.answer_connections(message),
+                            "employee_id": employee_id, "employee": employee["name"]})
 
         if (not images and employee_id == "employee_9"
                 and echo_roblox.looks_like_build_request(message)):
