@@ -1,9 +1,9 @@
 {
-  "objective": "Build Echo's OpusClip connection (YouTube/Instagram/TikTok posting) when the owner says go",
-  "checkpoint": "PR #7 holds stop-trading + chart screenshots, waiting for owner's go",
+  "objective": "Owner installs updates and connects keys; next upgrades only if free",
+  "checkpoint": "Bigger free brain built (echo_brain.py)",
   "next_actions": [
-    "Owner says go to merge PR #7",
-    "Owner installs updates, /getvision"
+    "Owner sends /brain then /brain upgrade",
+    "Next free fixes offered: brain jam (background jobs), error log, keep model loaded, backups"
   ],
   "updated": "2026-11-04"
 }

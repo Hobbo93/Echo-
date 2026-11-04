@@ -27,12 +27,12 @@ import urllib.parse
 import urllib.request
 from html import escape
 from pathlib import Path
+import echo_brain
 
 CONFIG = Path.home() / ".echo_telegram.json"
 URL_FILE = Path.home() / ".echo_phone_url"
 PORT = 5001
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 VOICE = os.getenv("ECHO_PHONE_VOICE", "Polly.Olivia-Neural")  # Australian English
 LANGUAGE = "en-AU"
 
@@ -241,7 +241,7 @@ def briefing():
 def ask_echo(history, message):
     messages = [{"role": "system", "content": _persona(message)}, *history,
                 {"role": "user", "content": message}]
-    payload = {"model": MODEL, "messages": messages, "stream": False,
+    payload = {"model": echo_brain.fast_model(), "messages": messages, "stream": False,
                "options": {"num_predict": 120}}  # short answers keep calls snappy
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})

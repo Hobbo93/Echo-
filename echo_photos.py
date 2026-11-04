@@ -22,7 +22,12 @@ from datetime import datetime
 from pathlib import Path
 
 OLLAMA_BASE = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat").rsplit("/api/", 1)[0]
-VISION_MODEL = os.getenv("ECHO_VISION_MODEL", "gemma3:4b")
+def vision_model():
+    """The photo model (set by echo_brain; gemma3:4b unless upgraded)."""
+    import echo_brain
+    return echo_brain.vision_model()
+
+
 VISION_SIZE = "about 3.3 GB"
 PHOTO_DIR = Path.home() / "Echo_photos"
 IMAGE_TYPES = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
@@ -55,8 +60,8 @@ def installed_models():
 
 
 def has_vision():
-    want = VISION_MODEL if ":" in VISION_MODEL else VISION_MODEL + ":latest"
-    return any(name == want or name == VISION_MODEL for name in installed_models())
+    want = vision_model() if ":" in vision_model() else vision_model() + ":latest"
+    return any(name == want or name == vision_model() for name in installed_models())
 
 
 def pull_vision(progress=None):
@@ -65,7 +70,7 @@ def pull_vision(progress=None):
         raise RuntimeError("The vision model is already downloading.")
     pull_state.update(running=True, percent=0, status="starting", error="")
     try:
-        body = json.dumps({"model": VISION_MODEL, "stream": True}).encode()
+        body = json.dumps({"model": vision_model(), "stream": True}).encode()
         req = urllib.request.Request(OLLAMA_BASE + "/api/pull", body,
                                      {"Content-Type": "application/json"})
         last = -1
@@ -108,7 +113,7 @@ def _quiet(fn):
 
 
 def need_vision_message(how="Send /getvision"):
-    return ("To see photos I need a vision model (" + VISION_MODEL + ", " + VISION_SIZE +
+    return ("To see photos I need a vision model (" + vision_model() + ", " + VISION_SIZE +
             ", free, runs on your PC). " + how + " to download it, then send the photo again.")
 
 
@@ -120,7 +125,7 @@ def look(images, question="", history=None):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}, *(history or []),
                 {"role": "user", "content": question,
                  "images": [base64.b64encode(b).decode() for b in images]}]
-    payload = {"model": VISION_MODEL, "messages": messages, "stream": False}
+    payload = {"model": vision_model(), "messages": messages, "stream": False}
     req = urllib.request.Request(OLLAMA_BASE + "/api/chat", json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
     try:

@@ -27,10 +27,10 @@ from datetime import datetime
 from pathlib import Path
 
 import echo_memory
+import echo_brain
 
 STATE_FILE = Path.home() / ".echo_growth.json"
 OLLAMA_URL = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 UA = {"User-Agent": "EchoPersonalAssistant/1.0 (local research)"}
 
 RESEARCH_EVERY_MIN = 90
@@ -111,7 +111,7 @@ def _save(s):
 def _ask(prompt, max_tokens=300, ask=None):
     if ask:
         return ask(prompt)
-    payload = {"model": MODEL, "stream": False, "options": {"num_predict": max_tokens, "temperature": .2},
+    payload = {"model": echo_brain.model(), "stream": False, "options": {"num_predict": max_tokens, "temperature": .2},
                "messages": [{"role": "user", "content": prompt}]}
     req = urllib.request.Request(OLLAMA_URL, json.dumps(payload).encode(), {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=240) as r:
