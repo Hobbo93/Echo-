@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Bigger free brain built (echo_brain.py)",
+  "checkpoint": "Free upgrade pack built, PR opening",
   "next_actions": [
-    "Owner sends /brain then /brain upgrade",
-    "Next free fixes offered: brain jam (background jobs), error log, keep model loaded, backups"
+    "Merge the upgrade-pack PR once green",
+    "Owner: Yes to update, /brain, /getvision, /getvoice, set goals for /plan"
   ],
   "updated": "2026-11-04"
 }

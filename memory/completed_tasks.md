@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 Free upgrade pack: brain-jam fix (activity pause + background thread + keep_alive), echo_log.py error log + morning report + /errors, echo_backup.py nightly backups (no keys) + /backup, echo_health.py weekly + /health, echo_ceo.py weekly plan + morning top 3 + /plan /done, Piper natural voice /getvoice, removed unused echo_approvals.py + Echo_upgrades.py
 - 2026-11-04 echo_brain.py: one central model setting for all modules; /brain checks RAM+GPU (PowerShell, registry VRAM), recommends llama3.2 / qwen2.5:7b / gemma3:12b, /brain upgrade pulls via Ollama + speed test + switches; phone keeps llama3.2 unless GPU>=6GB; /brain small reverts
 - 2026-11-04 Chart screenshot reading (echo_tradeshot.py): Telegram photo with trade caption or office photo to trading desk → vision reads ticker/price (caption ticker wins) → echo_trading.analyse on live data + echo_chart plan chart (entry/stop/target). Free; never trades. Drawing on the user's own screenshot not done (small model can't locate price levels reliably)
 - 2026-11-04 Trading stop button: 'stop trading' pauses at once (settings paused flag, cancels waiting idea, blocks propose/amount_trade/approve buys/evening idea); 'sell everything' → Yes → Alpaca close_all + paper sells; 'resume trading'. Checked before SELL_RE so 'sell everything' isn't read as a ticker

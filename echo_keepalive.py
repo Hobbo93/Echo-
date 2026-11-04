@@ -32,6 +32,11 @@ def main():
             restarts = 0
         restarts += 1
         wait = min(300, 10 * restarts)  # back off if it keeps crashing straight away
+        try:
+            import echo_log
+            echo_log.error("keepalive", note=f"{script} stopped (code {code}), restarting in {wait}s")
+        except Exception:
+            pass
         print(f"\n{script} stopped (code {code}). Restarting in {wait} seconds… "
               "Close this window to stop it.", flush=True)
         time.sleep(wait)

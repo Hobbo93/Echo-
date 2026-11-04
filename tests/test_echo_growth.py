@@ -23,6 +23,8 @@ class GrowthTest(unittest.TestCase):
         self.saved = (echo_memory.DB_PATH, echo_growth.STATE_FILE, echo_growth._get)
         echo_memory.DB_PATH = d / "memory.db"
         echo_growth.STATE_FILE = d / "growth.json"
+        self.saved_activity = echo_growth.echo_brain.ACTIVITY
+        echo_growth.echo_brain.ACTIVITY = d / "activity"
         echo_growth._caps.update(at=time.time(), text="Connected and working: Telegram.")
 
         def offline(url, timeout=20):
@@ -31,6 +33,7 @@ class GrowthTest(unittest.TestCase):
 
     def tearDown(self):
         echo_memory.DB_PATH, echo_growth.STATE_FILE, echo_growth._get = self.saved
+        echo_growth.echo_brain.ACTIVITY = self.saved_activity
         self.tmp.cleanup()
 
     def test_check_reply_flags_made_up_actions(self):
@@ -90,6 +93,13 @@ class GrowthTest(unittest.TestCase):
     def test_dont_know_queues_research(self):
         echo_growth.after_reply("what is the best dog jacket brand in Australia?", "I don't know, sorry.")
         self.assertIn("best dog jacket brand", echo_growth.describe_research())
+
+    def test_waits_while_owner_is_chatting(self):
+        sent = []
+        echo_growth.echo_brain.mark_active()
+        echo_growth.tick(datetime(2026, 11, 4, 21, 0), sent.append, ask=lambda p: '["Be blunt"]')
+        self.assertEqual(sent, [])  # nothing ran: the owner is talking to Echo
+        self.assertEqual(echo_growth._load()["last_reflect"], "")  # so it still happens later
 
     def test_evening_tick_reflects_once(self):
         sent = []

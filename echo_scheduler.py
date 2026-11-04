@@ -19,6 +19,12 @@ import echo_business
 import echo_memory
 import echo_growth
 import echo_opusclip
+import echo_brain
+import echo_log
+import echo_backup
+import echo_health
+import echo_ceo
+import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -181,6 +187,7 @@ def run_trade_scan(schedule):
         print("Trade scan:", echo_trading.send_idea_to_phone()[:120])
     except Exception as exc:
         print("Trade scan failed:", exc)
+        echo_log.error("Trade scan failed", exc)
 
 
 _last_trench_check = [0.0]
@@ -197,6 +204,7 @@ def run_trench_watch():
         echo_trading.check_paper_exits()  # practice account: sell at the stop or target
     except Exception as exc:
         print("Trench watch failed:", exc)
+        echo_log.error("Trench watch failed", exc)
 
 
 CEO_TIME = "18:00"
@@ -213,6 +221,7 @@ def run_ceo_summary(schedule):
         send_message(echo_business.ceo_summary())
     except Exception as exc:
         print("CEO summary failed:", exc)
+        echo_log.error("CEO summary failed", exc)
 
 
 def run_ops_check(schedule):
@@ -261,30 +270,55 @@ def run_phone_checkins(schedule):
             save_schedule(schedule)
     except Exception as exc:
         print("Phone check-in failed:", exc)
+        echo_log.error("Phone check-in failed", exc)
 
 
 _last_memory_tidy = [0.0]
+
+
+_background = {"thread": None}
+
+
+def run_in_background(name, job):
+    """Run a slow AI job (research, summaries) without holding up the 60-second loop, one at a time,
+    and only while the owner isn't talking to Echo (so chats and phone calls get the AI first)."""
+    t = _background["thread"]
+    if (t and t.is_alive()) or echo_brain.owner_active():
+        return False
+
+    def runner():
+        try:
+            job()
+        except Exception as error:
+            print(f"{name} skipped:", error)
+            echo_log.error(name, error)
+    _background["thread"] = threading.Thread(target=runner, name=name, daemon=True)
+    _background["thread"].start()
+    return True
 
 
 def run_memory_summaries():
     """Every 30 minutes, turn finished chats into short memories (local model, free)."""
     if time.time() - _last_memory_tidy[0] < 1800:
         return
+    if not run_in_background("Memory summary", _summarise_chats):
+        return
     _last_memory_tidy[0] = time.time()
+
+
+def _summarise_chats():
     try:
         done = echo_memory.summarise_finished_chats()
         if done:
             print(f"Echo memory: summarised {done} finished chat(s).")
     except Exception as error:
         print("Memory summary skipped:", error)
+        echo_log.error("Memory summary skipped", error)
 
 
 def run_growth():
     """Echo's own research (every 90 min, 7 AM-10 PM) and the evening review of how it talks."""
-    try:
-        echo_growth.tick(current_time(), notify=send_message)
-    except Exception as error:
-        print("Growth step skipped:", error)
+    run_in_background("Growth step", lambda: echo_growth.tick(current_time(), notify=send_message))
 
 
 _last_opus_check = [0.0]
@@ -299,6 +333,53 @@ def run_opusclip_check():
         echo_opusclip.check_projects(notify=send_message)
     except Exception as error:
         print("OpusClip check skipped:", error)
+        echo_log.error("OpusClip check skipped", error)
+
+
+def run_error_report(schedule):
+    """Each morning from 8 AM: if anything went wrong in the last day, text a short list."""
+    if current_time().hour < 8:
+        return
+    msg = echo_log.since_last_report(schedule)
+    save_schedule(schedule)
+    if msg:
+        send_message(msg)
+
+
+def run_backup():
+    """Nightly backup of memory, records and settings (not keys) to OneDrive/Documents."""
+    if echo_backup.due(current_time().replace(tzinfo=None)):
+        def job():
+            path, text = echo_backup.backup_now()
+            print(text)
+        run_in_background("Backup", job)
+
+
+def run_weekly_health(schedule):
+    """Every Sunday from 10 AM: Echo checks every part of itself and texts the result."""
+    now = current_time()
+    if now.weekday() != 6 or now.hour < 10 or schedule.get("last_health") == today():
+        return
+    schedule["last_health"] = today()
+    save_schedule(schedule)
+    run_in_background("Health check", lambda: send_message(echo_health.report()))
+
+
+def run_ceo_plan(schedule):
+    """The CEO makes a weekly plan from your goals (Mondays, or when there isn't one), and from
+    8:30 AM each day sends today's top 3."""
+    now = current_time()
+    if now.hour >= 7 and echo_ceo.needs_new_plan(now.date()) and schedule.get("last_ceo_plan_try") != today():
+        if run_in_background("CEO plan", lambda: send_message(echo_ceo.make_plan(today=now.date()))):
+            schedule["last_ceo_plan_try"] = today()
+            save_schedule(schedule)
+        return
+    if now.strftime("%H:%M") >= "08:30" and schedule.get("last_morning_plan") != today():
+        schedule["last_morning_plan"] = today()
+        save_schedule(schedule)
+        text = echo_ceo.morning_text()
+        if text:
+            send_message(text)
 
 
 def run_lead_research(schedule):
@@ -391,6 +472,10 @@ def run_daily_schedule():
     run_memory_summaries()
     run_growth()
     run_opusclip_check()
+    run_error_report(schedule)
+    run_backup()
+    run_weekly_health(schedule)
+    run_ceo_plan(schedule)
 
     now = current_time().strftime("%H:%M")
 
@@ -431,6 +516,7 @@ def alert_once(message):
 # ==========================================
 
 if __name__ == "__main__":
+    echo_log.install()
     print("ECHO AI SCHEDULER STARTED")
     print("Timezone: Australia/Adelaide")
     print("Reports: 6:30 AM, 1 PM, 5:30 PM")
@@ -441,6 +527,7 @@ if __name__ == "__main__":
             run_daily_schedule()
         except Exception as error:
             print("Scheduler error:", error)
+            echo_log.error("Scheduler error", error)
             alert_once("Scheduler error: " + str(error))
 
         time.sleep(60)

@@ -28,6 +28,7 @@ import urllib.request
 from html import escape
 from pathlib import Path
 import echo_brain
+import echo_log
 
 CONFIG = Path.home() / ".echo_telegram.json"
 URL_FILE = Path.home() / ".echo_phone_url"
@@ -203,14 +204,14 @@ def briefing():
             needs.append(f"the Day Trading Desk has a trade idea: {p['symbol']} "
                          f"{'up' if p.get('direction', 'UP') == 'UP' else 'down'}, stop {p['stop']:.2f}, "
                          f"target {p['target']:.2f}")
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
     try:
         from echo_telegram import PENDING_FILE
         if PENDING_FILE.exists():
             needs.append("there's an Echo update waiting for your yes or no")
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
     try:
         import echo_business
         urgent = [t for t in echo_business._tickets() if t["status"] == "open" and t["urgent"]]
@@ -222,15 +223,15 @@ def briefing():
         bad = [l[2:] for l in echo_business.status_text().splitlines() if l.startswith("🔴")]
         if bad:
             needs.append("Operations says " + bad[0])
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
     try:
         from echo_tasks import load_tasks
         waiting = sum(t["status"] == "waiting_for_approval" for t in load_tasks().values())
         if waiting:
             needs.append(f"{waiting} tasks are waiting for approval")
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
     return needs
 
 
@@ -241,7 +242,9 @@ def briefing():
 def ask_echo(history, message):
     messages = [{"role": "system", "content": _persona(message)}, *history,
                 {"role": "user", "content": message}]
+    echo_brain.mark_active()
     payload = {"model": echo_brain.fast_model(), "messages": messages, "stream": False,
+               "keep_alive": echo_brain.KEEP_ALIVE,
                "options": {"num_predict": 120}}  # short answers keep calls snappy
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
@@ -251,8 +254,8 @@ def ask_echo(history, message):
         import echo_growth
         if echo_growth.check_reply(reply) != reply:  # it claimed something that didn't happen
             reply += " Actually, to be honest, I can't really do that from a call, so it hasn't happened."
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
     _log("phone", message, reply)
     return reply
 
@@ -262,8 +265,8 @@ def _log(channel, message, reply):
         import echo_memory
         # No summary during a call (it would slow replies); the scheduler does it afterwards.
         echo_memory.log_turn(channel, message, reply, summarise=False)
-    except Exception:
-        pass  # memory problems must never break a call
+    except Exception as _exc:
+        echo_log.error("echo_phone", _exc)
 
 
 # ==========================================
@@ -287,8 +290,8 @@ def _do_approval(kind, choice):
             try:
                 import echo_trading
                 echo_trading._telegram_text("Approved on the phone:\n" + result)
-            except Exception:
-                pass
+            except Exception as _exc:
+                echo_log.error("echo_phone", _exc)
             return result.splitlines()[0].replace("✅ ", "Done. ")
         if kind == "trade":
             import echo_trading
@@ -300,8 +303,8 @@ def _do_approval(kind, choice):
                 echo_trading._telegram_text("Approved on the phone:\n" + msg)
                 if png:
                     echo_trading._telegram_photo(png, "Your trade: blue entry, red stop, green target")
-            except Exception:
-                pass
+            except Exception as _exc:
+                echo_log.error("echo_phone", _exc)
             return "Done. I've sent the details and a chart to your Telegram."
     except Exception as exc:
         return "Sorry, that didn't work: " + str(exc)[:120]
@@ -438,4 +441,5 @@ def main():
 
 
 if __name__ == "__main__":
+    echo_log.install()
     main()

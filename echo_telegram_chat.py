@@ -41,6 +41,10 @@ import echo_computer
 import echo_guide
 import echo_tradeshot
 import echo_brain
+import echo_log
+import echo_backup
+import echo_health
+import echo_ceo
 
 
 def telegram(method, params=None):
@@ -92,7 +96,9 @@ def ask_echo(message, spoken=False):
             system += "\n\nSummary of your last conversation:\n" + earlier
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
-    payload = {"model": echo_brain.model(), "messages": messages, "stream": False}
+    echo_brain.mark_active()
+    payload = {"model": echo_brain.model(), "messages": messages, "stream": False,
+               "keep_alive": echo_brain.KEEP_ALIVE}
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
     try:
@@ -227,6 +233,7 @@ def _safe_text(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
     except Exception as exc:
+        echo_log.error(getattr(fn, "__name__", "telegram"), exc)
         return "That didn't work: " + str(exc)[:300]
 
 
@@ -393,6 +400,36 @@ def handle_command(text):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_brain.handle, cmd, lambda m: send(CHAT_ID, m))),
                          daemon=True).start()
+        return True
+    if re.match(r"^/?done\s+#?\d{1,2}\b", lower) or lower.startswith("/plan") or re.search(
+            r"\b(this week'?s plan|weekly plan|what'?s the plan)\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_ceo.handle, text) or "Send /plan for this week's plan."),
+                         daemon=True).start()
+        return True
+    if lower.startswith("/getvoice") or re.search(r"\b(better|nicer|natural|new) voice\b", lower):
+        which = "british" if "brit" in lower else "american"
+        send(CHAT_ID, f"🗣️ Getting a free natural {which.title()} voice (about 85 MB). I'll tell you when it's ready.")
+
+        def get_voice():
+            send(CHAT_ID, _safe_text(echo_voice.setup_voice, which, lambda m: None))
+        threading.Thread(target=get_voice, daemon=True).start()
+        return True
+    if lower.startswith("/health") or re.search(r"\b(health ?check|how are you running|are you (ok|okay|working))\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_health.report)), daemon=True).start()
+        return True
+    if lower.startswith("/backup") or re.search(r"\bback ?up (now|echo|everything|my stuff)\b", lower):
+        def do_backup():
+            try:
+                send(CHAT_ID, echo_backup.backup_now()[1] + "\n(Your keys and passwords are never included.)")
+            except Exception as exc:
+                echo_log.error("backup", exc)
+                send(CHAT_ID, "❌ Backup failed: " + str(exc)[:200])
+        threading.Thread(target=do_backup, daemon=True).start()
+        return True
+    if lower.startswith("/errors") or re.search(r"\b(what'?s|anything|is anything) (broken|wrong)\b", lower):
+        send(CHAT_ID, echo_log.summary(72) or "✅ No problems logged in the last 3 days.")
         return True
     if lower.startswith("/learned"):
         send(CHAT_ID, echo_growth.describe_learning())
@@ -615,6 +652,9 @@ def handle_command(text):
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
+             "• /plan - the CEO's plan for this week from your goals · /done 2 - tick off task 2\n"
+             "• /getvoice - a free natural voice for my voice notes (/getvoice british)\n"
+             "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
@@ -715,4 +755,5 @@ def main():
 
 
 if __name__ == "__main__":
+    echo_log.install()
     main()

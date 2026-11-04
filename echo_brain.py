@@ -61,6 +61,26 @@ def vision_model():
     return os.getenv("ECHO_VISION_MODEL") or _settings().get("vision_model") or VISION_SMALL
 
 
+KEEP_ALIVE = "30m"  # keep the model loaded this long after a chat, so replies stay quick
+ACTIVITY = Path.home() / ".echo_activity"
+
+
+def mark_active():
+    """Call when the owner talks to Echo (chat, office, phone). Background jobs wait for a quiet spell."""
+    try:
+        ACTIVITY.write_text(str(time.time()), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def owner_active(minutes=4):
+    """True if the owner talked to Echo in the last few minutes (any part of Echo)."""
+    try:
+        return time.time() - float(ACTIVITY.read_text(encoding="utf-8")) < minutes * 60
+    except (OSError, ValueError):
+        return False
+
+
 def resolve(name):
     """An employee's model setting: the old default (or blank) means 'Echo's brain'."""
     name = (name or "").strip()

@@ -24,6 +24,7 @@ import echo_growth
 import echo_router
 import echo_tradeshot
 import echo_brain
+import echo_log
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -89,6 +90,7 @@ def ask_ollama(message, employee, history=()):
         "or contact businesses. "
         + echo_business.OFFICE_RULES
     )
+    echo_brain.mark_active()
     try:  # honesty rules, real connections and lessons learned from the owner
         system_prompt += "\n\n" + echo_growth.prompt_block()
     except Exception:
@@ -113,7 +115,8 @@ def ask_ollama(message, employee, history=()):
                 "content": message
             }
         ],
-        "stream": False
+        "stream": False,
+        "keep_alive": echo_brain.KEEP_ALIVE
     }
 
     data = json.dumps(payload).encode("utf-8")
@@ -713,6 +716,7 @@ def status():
 # ==========================================
 
 if __name__ == "__main__":
+    echo_log.install()
 
     print("=" * 40)
     print("ECHO AI EMPLOYEE SERVER")
