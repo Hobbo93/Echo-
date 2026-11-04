@@ -483,6 +483,11 @@ def handle_command(text):
     if lower.startswith("/errors") or re.search(r"\b(what'?s|anything|is anything) (broken|wrong)\b", lower):
         send(CHAT_ID, echo_log.summary(72) or "✅ No problems logged in the last 3 days.")
         return True
+    m = re.match(r"^(?:/myphone|my (?:phone |mobile )?(?:number|no\.?) is|call me on|ring me on)\s+([+\d][\d\s()+-]{7,})\s*$", lower)
+    if m:
+        import echo_phone
+        send(CHAT_ID, echo_phone.set_my_phone(m.group(1)))
+        return True
     if lower.startswith("/learned"):
         send(CHAT_ID, echo_growth.describe_learning())
         return True
