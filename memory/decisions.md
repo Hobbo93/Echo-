@@ -11,3 +11,4 @@ Format: date — decision — why.
 - 2026-11-04 — Office look = night/dusk neon (owner's reference image, Nov 2026); keep department colours from DEPTS in Office.html
 - 2026-11-04 — Echo's self-improvement changes only its talking rules (max 8, unsafe ones filtered) and memory; it never edits its own code or safety rules — keeps the owner in control
 - 2026-11-04 — Connection questions are never answered by the LLM; echo_router.answer_connections runs real checks (owner was told 'yes connected' falsely)
+- 2026-11-04 — Owner chose FREE PC control only (open pages + screenshots). Paid Claude computer-use takeover (~US$0.05–3/task, separate API billing) declined for now; local vision models judged too unreliable for multi-step tasks

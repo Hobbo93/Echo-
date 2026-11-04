@@ -37,6 +37,10 @@ Other tools you can run by hand:
 
 Echo never publishes, trades, spends money or contacts anyone without your approval.
 
+## Echo on your PC (from Telegram)
+
+Say "search youtube for dog grooming tips", "google cheap dog beds", "open my shopify admin" or "open gmail", and Echo opens it on the PC and sends you a screenshot. `/screen` (or "show me my screen") sends a picture of the screen any time. Echo only opens web pages; it never clicks, types or enters passwords.
+
 ## Short videos with OpusClip
 
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.

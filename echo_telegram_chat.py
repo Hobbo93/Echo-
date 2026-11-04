@@ -38,6 +38,7 @@ import echo_memory
 import echo_growth
 import echo_opusclip
 import echo_router
+import echo_computer
 
 
 def telegram(method, params=None):
@@ -233,6 +234,21 @@ def handle_command(text):
             send(CHAT_ID, echo_email.approve(), NO_KEYBOARD)
         except Exception as exc:
             send(CHAT_ID, "The email was NOT sent: " + str(exc)[:300], NO_KEYBOARD)
+        return True
+    pc = echo_computer.plan(text)
+    if pc:
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_photo"})
+
+        def on_pc():
+            msg, shot = echo_computer.do(pc)
+            if shot:
+                try:
+                    send_photo(CHAT_ID, shot, msg)
+                    return
+                except Exception as exc:
+                    msg += f" (Couldn't send the screenshot: {str(exc)[:100]})"
+            send(CHAT_ID, msg)
+        threading.Thread(target=on_pc, daemon=True).start()
         return True
     routed = echo_router.route(text)
     if routed and routed[0] == "connections":
@@ -549,6 +565,7 @@ def handle_command(text):
              "• /callme - I ring your phone\n"
              "• remember that ... · /memories - what I remember · /forget 12\n"
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
+             "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")
