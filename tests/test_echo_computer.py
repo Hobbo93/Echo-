@@ -40,7 +40,7 @@ class ComputerTest(unittest.TestCase):
         opened = []
         real = (pc.open_url, pc.screenshot)
         pc.open_url = opened.append
-        pc.screenshot = lambda path=None: "shot.png"
+        pc.screenshot = lambda: "shot.png"
         try:
             msg, shot = pc.do(pc.plan("search youtube for dog tricks"), wait=0)
         finally:
@@ -56,7 +56,7 @@ class ComputerTest(unittest.TestCase):
     def test_screenshot_failure_is_reported(self):
         real = pc.screenshot
 
-        def broken(path=None):
+        def broken():
             raise RuntimeError("no screen")
         pc.screenshot = broken
         try:

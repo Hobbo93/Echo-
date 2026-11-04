@@ -8,14 +8,12 @@
 
 After opening something, Echo waits a few seconds and sends you a screenshot so you can
 see what's on the screen. It only opens web pages: it never runs programs, types, clicks,
-or enters passwords. Standard library only; screenshots use Windows' built-in PowerShell.
+or enters passwords. Standard library only; screenshots come from echo_photos.screenshot().
 """
 import json
 import os
 import re
-import subprocess
 import sys
-import tempfile
 import time
 import urllib.parse
 import webbrowser
@@ -116,25 +114,10 @@ def open_url(url):
         raise RuntimeError("Couldn't open the web browser on the PC.")
 
 
-def screenshot(path=None):
-    """Save a picture of the whole PC screen (all monitors). Returns the file path."""
-    if sys.platform != "win32":
-        raise RuntimeError("Screenshots only work on the Windows PC.")
-    path = Path(path or Path(tempfile.gettempdir()) / f"echo_screen_{int(time.time())}.png")
-    ps = (
-        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing;"
-        "$b=[System.Windows.Forms.SystemInformation]::VirtualScreen;"
-        "$i=New-Object System.Drawing.Bitmap $b.Width,$b.Height;"
-        "$g=[System.Drawing.Graphics]::FromImage($i);"
-        "$g.CopyFromScreen($b.Left,$b.Top,0,0,$i.Size);"
-        f"$i.Save('{str(path)}',[System.Drawing.Imaging.ImageFormat]::Png);$g.Dispose();$i.Dispose()"
-    )
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-                       capture_output=True, text=True, timeout=30, creationflags=flags)
-    if r.returncode or not path.exists():
-        raise RuntimeError("Couldn't take a screenshot" + (f": {r.stderr.strip()[:200]}" if r.stderr.strip() else "."))
-    return str(path)
+def screenshot():
+    """Picture of the whole PC screen (all monitors). Returns the file path."""
+    import echo_photos
+    return str(echo_photos.screenshot())
 
 
 def do(p, wait=SHOT_WAIT_SECONDS):
