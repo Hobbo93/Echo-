@@ -24,6 +24,7 @@ import echo_growth
 import echo_router
 import echo_tradeshot
 import echo_brain
+import echo_log
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -715,6 +716,7 @@ def status():
 # ==========================================
 
 if __name__ == "__main__":
+    echo_log.install()
 
     print("=" * 40)
     print("ECHO AI EMPLOYEE SERVER")

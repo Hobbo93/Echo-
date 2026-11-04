@@ -28,6 +28,7 @@ from pathlib import Path
 
 import echo_memory
 import echo_brain
+import echo_log
 
 STATE_FILE = Path.home() / ".echo_growth.json"
 OLLAMA_URL = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
@@ -296,8 +297,8 @@ def fetch_sources(topic, limit=6):
                             "text": re.sub(r"<[^>]+>", " ", item.findtext("description") or "")[:300]})
             if len(out) >= limit - 2:
                 break
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_growth", _exc)
     try:
         q = urllib.parse.quote(topic)
         data = json.loads(_get("https://en.wikipedia.org/w/api.php?action=query&list=search&format=json"
@@ -306,8 +307,8 @@ def fetch_sources(topic, limit=6):
             out.append({"title": hit["title"], "source": "Wikipedia", "date": hit.get("timestamp", "")[:10],
                         "link": "https://en.wikipedia.org/wiki/" + urllib.parse.quote(hit["title"].replace(" ", "_")),
                         "text": re.sub(r"<[^>]+>", "", hit.get("snippet", ""))[:300]})
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_growth", _exc)
     return out[:limit]
 
 

@@ -30,6 +30,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+import echo_log
 
 DIR = Path.home() / "Echo_trading"
 JOURNAL = DIR / "journal.json"
@@ -485,8 +486,8 @@ def amount_trade(symbol, amount):
         png = echo_chart.candle_chart(rows, price, stop, target)
         _telegram_photo(png, f"{symbol}: blue = buy, red = stop-loss, green = take profit")
         sent_to_phone[0] = bool(_telegram_text(msg, TRADE_KEYBOARD))
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_trading", _exc)
     return msg
 
 
@@ -516,8 +517,8 @@ def sell_request(symbol):
            f"of about {pnl:+,.2f}.\nReply Yes to sell, or No to keep it.")
     try:
         sent_to_phone[0] = bool(_telegram_text(msg, TRADE_KEYBOARD))
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_trading", _exc)
     return msg
 
 
@@ -543,8 +544,8 @@ def check_paper_exits():
     if said:
         try:
             _telegram_text("\n".join(said))
-        except Exception:
-            pass
+        except Exception as _exc:
+            echo_log.error("echo_trading", _exc)
     return said
 
 

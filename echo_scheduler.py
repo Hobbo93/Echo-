@@ -20,6 +20,7 @@ import echo_memory
 import echo_growth
 import echo_opusclip
 import echo_brain
+import echo_log
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -183,6 +184,7 @@ def run_trade_scan(schedule):
         print("Trade scan:", echo_trading.send_idea_to_phone()[:120])
     except Exception as exc:
         print("Trade scan failed:", exc)
+        echo_log.error("Trade scan failed", exc)
 
 
 _last_trench_check = [0.0]
@@ -199,6 +201,7 @@ def run_trench_watch():
         echo_trading.check_paper_exits()  # practice account: sell at the stop or target
     except Exception as exc:
         print("Trench watch failed:", exc)
+        echo_log.error("Trench watch failed", exc)
 
 
 CEO_TIME = "18:00"
@@ -215,6 +218,7 @@ def run_ceo_summary(schedule):
         send_message(echo_business.ceo_summary())
     except Exception as exc:
         print("CEO summary failed:", exc)
+        echo_log.error("CEO summary failed", exc)
 
 
 def run_ops_check(schedule):
@@ -263,6 +267,7 @@ def run_phone_checkins(schedule):
             save_schedule(schedule)
     except Exception as exc:
         print("Phone check-in failed:", exc)
+        echo_log.error("Phone check-in failed", exc)
 
 
 _last_memory_tidy = [0.0]
@@ -283,6 +288,7 @@ def run_in_background(name, job):
             job()
         except Exception as error:
             print(f"{name} skipped:", error)
+            echo_log.error(name, error)
     _background["thread"] = threading.Thread(target=runner, name=name, daemon=True)
     _background["thread"].start()
     return True
@@ -304,6 +310,7 @@ def _summarise_chats():
             print(f"Echo memory: summarised {done} finished chat(s).")
     except Exception as error:
         print("Memory summary skipped:", error)
+        echo_log.error("Memory summary skipped", error)
 
 
 def run_growth():
@@ -323,6 +330,17 @@ def run_opusclip_check():
         echo_opusclip.check_projects(notify=send_message)
     except Exception as error:
         print("OpusClip check skipped:", error)
+        echo_log.error("OpusClip check skipped", error)
+
+
+def run_error_report(schedule):
+    """Each morning from 8 AM: if anything went wrong in the last day, text a short list."""
+    if current_time().hour < 8:
+        return
+    msg = echo_log.since_last_report(schedule)
+    save_schedule(schedule)
+    if msg:
+        send_message(msg)
 
 
 def run_lead_research(schedule):
@@ -415,6 +433,7 @@ def run_daily_schedule():
     run_memory_summaries()
     run_growth()
     run_opusclip_check()
+    run_error_report(schedule)
 
     now = current_time().strftime("%H:%M")
 
@@ -455,6 +474,7 @@ def alert_once(message):
 # ==========================================
 
 if __name__ == "__main__":
+    echo_log.install()
     print("ECHO AI SCHEDULER STARTED")
     print("Timezone: Australia/Adelaide")
     print("Reports: 6:30 AM, 1 PM, 5:30 PM")
@@ -465,6 +485,7 @@ if __name__ == "__main__":
             run_daily_schedule()
         except Exception as error:
             print("Scheduler error:", error)
+            echo_log.error("Scheduler error", error)
             alert_once("Scheduler error: " + str(error))
 
         time.sleep(60)

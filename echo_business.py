@@ -21,6 +21,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 import echo_brain
+import echo_log
 
 DIR = Path.home() / "Echo_business"
 RECORDS = DIR / "records"
@@ -339,18 +340,18 @@ def status_text():
         import echo_preflight
         o = echo_preflight.check_ollama()
         lines.append(("🟢" if o.get("status") == "ok" else "🔴") + " AI brain (Ollama): " + o.get("detail", o.get("status", "")))
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     try:
         import echo_leads
         lines.append(("🟢" if echo_leads.API_KEY else "⚪") + " Lead finder: " + ("on" if echo_leads.API_KEY else "needs Google Places key"))
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     try:
         import echo_broker
         lines.append(("🟢 Broker: " + echo_broker.mode()) if echo_broker.is_configured() else "⚪ Broker: not connected (Trench tickets / paper)")
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     return "\n".join(lines)
 
 
@@ -381,8 +382,8 @@ def ceo_summary():
         tasks = load_tasks().values()
         waiting = sum(t["status"] == "waiting_for_approval" for t in tasks)
         parts.append(f"Tasks waiting for your approval: {waiting}")
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     p = _pipeline()
     if p:
         counts = {s: sum(l["stage"] == s for l in p.values()) for s in STAGES}
@@ -399,8 +400,8 @@ def ceo_summary():
         st = echo_trading.trench_stats()
         if st:
             parts.append(st)
-    except Exception:
-        pass
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     parts.append(status_text())
     facts = "\n".join(parts)
     goals = goals_text()
