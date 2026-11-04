@@ -673,6 +673,99 @@ def _safe(fn):
         send(CHAT_ID, "Echo trading desk problem: " + str(exc)[:300])
 
 
+def handle_message(msg):
+    """Answer one Telegram message (text, voice note or photo)."""
+    text = msg.get("text", "").strip()
+    doc = msg.get("document") or {}
+    is_photo = bool(msg.get("photo")) or str(doc.get("mime_type", "")).startswith("image/")
+    try:
+        if is_photo:
+            handle_photo(msg)
+            return
+        if text and handle_command(text):
+            return
+        # A follow-up question about the photo you just sent
+        if text and last_photo and time.time() - last_photo["time"] < 180 \
+                and echo_photos.has_vision() and not text.startswith("/"):
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+            send(CHAT_ID, echo_photos.look([last_photo["data"]], text, history[-6:]))
+            return
+        spoken = bool(msg.get("voice"))
+        if spoken:
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+            text = transcribe(msg["voice"]["file_id"])
+            if not text:
+                send(CHAT_ID, "Sorry, I couldn't hear anything in that voice note.")
+                return
+        if not text:
+            return
+        if text.startswith("/callme"):
+            import echo_phone
+            needs = echo_phone.briefing()
+            send(CHAT_ID, echo_phone.call_me(
+                "Hi, it's Echo. You asked me to call. " + ("Quick update: " + "; ".join(needs[:3]) + ". "
+                                                         if needs else "") + "What's up?",
+                topic="Current needs: " + "; ".join(needs),
+                approval="trade" if any("trade idea" in n for n in needs) else None))
+            return
+        if text.startswith("/new"):
+            history.clear()
+            last_photo.clear()
+            send(CHAT_ID, "Started a fresh conversation.")
+            return
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        reply = ask_echo(text, spoken)
+        if spoken:
+            send(CHAT_ID, "🎙️ " + text + "\n\n" + reply)
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "record_voice"})
+            send_voice(CHAT_ID, reply[:1500])
+        else:
+            send(CHAT_ID, reply)
+    except Exception as exc:
+        send(CHAT_ID, "Echo could not complete that request: " + str(exc)[:250])
+
+
+STALE = re.compile(r"place trade|skip trade|^\s*(next|stop|done)\s*[.!]*$", re.I)
+
+
+def catch_up(updates, now=None):
+    """Answer messages sent while Echo was off (up to 24 h old, the last 5). Old Yes/No replies and
+    button taps are ignored, so nothing gets approved by accident."""
+    now = now or time.time()
+    missed = []
+    for u in updates:
+        msg = u.get("message") or {}
+        chat = msg.get("chat") or {}
+        if str(chat.get("id")) != CHAT_ID or chat.get("type") != "private":
+            continue
+        if now - msg.get("date", 0) > 24 * 3600:
+            continue
+        missed.append(msg)
+    if not missed:
+        return 0
+    text_of = lambda m: (m.get("text") or m.get("caption") or "").strip()
+    stale = [m for m in missed if text_of(m) and (yes_no(text_of(m)) or STALE.search(text_of(m)))]
+    todo = [m for m in missed if m not in stale][-5:]
+    head = f"👋 I'm back online. You sent {len(missed)} message{'s' if len(missed) != 1 else ''} while I was off"
+    if todo:
+        head += ", so here are my answers" + (" to the last 5" if len(missed) - len(stale) > 5 else "") + "."
+    else:
+        head += "."
+    if stale:
+        head += ("\n(I skipped your Yes/No or button replies: anything that needed approval has to be "
+                 "asked again, so nothing happens by accident.)")
+    send(CHAT_ID, head)
+    for m in todo:
+        quoted = text_of(m) or ("a photo" if m.get("photo") else "a voice note" if m.get("voice") else "a message")
+        send(CHAT_ID, "↪️ You said: " + quoted[:200])
+        try:
+            handle_message(m)
+        except Exception as exc:
+            echo_log.error("catch_up", exc)
+            send(CHAT_ID, "Echo could not complete that request: " + str(exc)[:250])
+    return len(todo)
+
+
 def main():
     global shared
     if not TOKEN:
@@ -689,6 +782,10 @@ def main():
             print("Waiting for Telegram:", str(exc)[:150], flush=True)
             time.sleep(10)
     offset = max((u["update_id"] for u in updates), default=-1) + 1
+    try:
+        catch_up(updates)
+    except Exception as exc:
+        echo_log.error("catch_up", exc)
     while True:
         try:
             echo_business.heartbeat("telegram")
@@ -698,54 +795,7 @@ def main():
                 chat = msg.get("chat") or {}
                 if str(chat.get("id")) != CHAT_ID or chat.get("type") != "private":
                     continue
-                text = msg.get("text", "").strip()
-                doc = msg.get("document") or {}
-                is_photo = bool(msg.get("photo")) or str(doc.get("mime_type", "")).startswith("image/")
-                try:
-                    if is_photo:
-                        handle_photo(msg)
-                        continue
-                    if text and handle_command(text):
-                        continue
-                    # A follow-up question about the photo you just sent
-                    if text and last_photo and time.time() - last_photo["time"] < 180 \
-                            and echo_photos.has_vision() and not text.startswith("/"):
-                        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
-                        send(CHAT_ID, echo_photos.look([last_photo["data"]], text, history[-6:]))
-                        continue
-                    spoken = bool(msg.get("voice"))
-                    if spoken:
-                        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
-                        text = transcribe(msg["voice"]["file_id"])
-                        if not text:
-                            send(CHAT_ID, "Sorry, I couldn't hear anything in that voice note.")
-                            continue
-                    if not text:
-                        continue
-                    if text.startswith("/callme"):
-                        import echo_phone
-                        needs = echo_phone.briefing()
-                        send(CHAT_ID, echo_phone.call_me(
-                            "Hi, it's Echo. You asked me to call. " + ("Quick update: " + "; ".join(needs[:3]) + ". "
-                                                                     if needs else "") + "What's up?",
-                            topic="Current needs: " + "; ".join(needs),
-                            approval="trade" if any("trade idea" in n for n in needs) else None))
-                        continue
-                    if text.startswith("/new"):
-                        history.clear()
-                        last_photo.clear()
-                        send(CHAT_ID, "Started a fresh conversation.")
-                        continue
-                    telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
-                    reply = ask_echo(text, spoken)
-                    if spoken:
-                        send(CHAT_ID, "🎙️ " + text + "\n\n" + reply)
-                        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "record_voice"})
-                        send_voice(CHAT_ID, reply[:1500])
-                    else:
-                        send(CHAT_ID, reply)
-                except Exception as exc:
-                    send(CHAT_ID, "Echo could not complete that request: " + str(exc)[:250])
+                handle_message(msg)
         except KeyboardInterrupt:
             return
         except Exception as exc:
