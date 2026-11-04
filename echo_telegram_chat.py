@@ -42,6 +42,7 @@ import echo_guide
 import echo_tradeshot
 import echo_sales
 import echo_brand
+import echo_finder
 import echo_brain
 import echo_log
 import echo_backup
@@ -286,6 +287,24 @@ def handle_command(text):
             if reply and "sent this to your phone" not in reply:
                 send(CHAT_ID, reply[:4000])
         threading.Thread(target=do_brand, daemon=True).start()
+        return True
+    if echo_finder.wants(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def do_find():
+            reply = _safe_text(echo_finder.handle, text)
+            if isinstance(reply, tuple) and reply[0] == "open":
+                msg, shot = echo_computer.do({"action": "open", "url": reply[1], "label": "the video"})
+                if shot:
+                    try:
+                        send_photo(CHAT_ID, shot, msg)
+                        return
+                    except Exception as exc:
+                        echo_log.error("send screenshot", exc)
+                send(CHAT_ID, msg)
+            elif reply and "sent it to your phone" not in str(reply):
+                send(CHAT_ID, str(reply)[:4000])
+        threading.Thread(target=do_find, daemon=True).start()
         return True
     if echo_email.pending() and yes_no(text) and not echo_shopify.pending() and not echo_trading.pending():
         if yes_no(text) == "no":
@@ -680,6 +699,7 @@ def handle_command(text):
              "• send a chart screenshot with 'what do I do?' (or the ticker) - the Trading Analyst reads it\n"
              "• stop trading - pause all trading at once · sell everything · resume trading\n"
              "• remember that ... · /memories - what I remember · /forget 12\n"
+             "• find videos about <topic> - top 5 YouTube videos · clip 2 - send one to OpusClip · paste any link + 'clip it'\n"
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"

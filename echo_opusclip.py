@@ -362,7 +362,9 @@ def propose(kind, data):
                        encoding="utf-8")
     if kind == "clip":
         msg = (f"🎬 Content Creator wants to send this video to OpusClip to make clips:\n{data['source']}\n\n"
-               "This uses OpusClip credits (about 1 per minute of video).")
+               "This uses OpusClip credits (about 1 per minute of video).\n"
+               "Only clip videos you own or have permission to use: reposting other people's videos can get "
+               "your channels struck.")
     else:
         msg = describe_plan(data)
     msg += "\n\nReply Yes to go ahead, or No to cancel."
