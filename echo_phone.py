@@ -51,10 +51,10 @@ QUIET_START, QUIET_END = 21, 8                      # no calls 9 PM - 8 AM unles
 MAX_CALLS_PER_DAY = 6
 
 
-def _persona():
+def _persona(message=""):
     try:
         import echo_personality
-        return echo_personality.persona(spoken=True)
+        return echo_personality.persona(spoken=True, message=message)
     except Exception:
         return SYSTEM_PROMPT
 
@@ -239,14 +239,25 @@ def briefing():
 # ==========================================
 
 def ask_echo(history, message):
-    messages = [{"role": "system", "content": _persona()}, *history,
+    messages = [{"role": "system", "content": _persona(message)}, *history,
                 {"role": "user", "content": message}]
     payload = {"model": MODEL, "messages": messages, "stream": False,
                "options": {"num_predict": 120}}  # short answers keep calls snappy
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=12) as r:  # Twilio waits 15s at most
-        return json.load(r).get("message", {}).get("content", "").strip()
+        reply = json.load(r).get("message", {}).get("content", "").strip()
+    _log("phone", message, reply)
+    return reply
+
+
+def _log(channel, message, reply):
+    try:
+        import echo_memory
+        # No summary during a call (it would slow replies); the scheduler does it afterwards.
+        echo_memory.log_turn(channel, message, reply, summarise=False)
+    except Exception:
+        pass  # memory problems must never break a call
 
 
 # ==========================================

@@ -62,10 +62,8 @@ def remember(text):
     if not m:
         return None
     fact = m.group(1).strip().rstrip(".")
-    s = _load()
-    if fact not in s["facts"]:
-        s["facts"] = (s["facts"] + [fact])[-60:]
-        _save(s)
+    import echo_memory
+    echo_memory.remember("about_you", fact)  # shared with every part of Echo
     return "Got it, I'll remember that: " + fact + " 😊"
 
 
@@ -79,10 +77,22 @@ def set_name(text):
     return f"Love it. {s['name']} it is!"
 
 
-def persona(spoken=False):
-    """System prompt that gives Echo its personality."""
+def _memories(message):
+    """Facts about you plus memories that match this message (see echo_memory.py)."""
+    try:
+        import echo_memory
+        echo_memory.migrate()  # one-time copy of older facts; instant after the first run
+        return echo_memory.context_for(message)
+    except Exception:
+        s = _load()  # memory database unavailable: fall back to the older fact list
+        return "\n".join("- " + f for f in s["facts"][-25:])
+
+
+def persona(spoken=False, message=""):
+    """System prompt that gives Echo its personality. Pass the user's message so
+    Echo brings up only the memories that matter for it."""
     s = _load()
-    facts = "\n".join("- " + f for f in s["facts"][-25:]) or "- (nothing yet)"
+    facts = _memories(message) or "- (nothing yet)"
     style = ("You're talking out loud, like a friend on the phone: one to four short, natural "
              "sentences, no lists, emojis or markdown.") if spoken else (
              "Write like you're texting a close friend: natural, short paragraphs, the odd emoji when it fits.")
@@ -99,7 +109,7 @@ def persona(spoken=False):
         "to be human to anyone else. "
         "You cannot claim actions you didn't do. Never trade, post, spend money or contact anyone "
         "without their approval. "
-        f"{style}\n\nThings you remember about {s['name']}:\n{facts}"
+        f"{style}\n\nWhat you remember about {s['name']}:\n{facts}"
     )
 
 
