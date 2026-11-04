@@ -59,8 +59,7 @@ def is_configured():
 
 
 NOT_CONNECTED = ("I'm not connected to your Shopify store yet, so I can't change anything there. "
-                 "It's a one-time setup (about 5 minutes): follow SHOPIFY_SETUP.md, then double-click "
-                 "connect_echo.bat and paste in your store address, Client ID and Client secret.")
+                 "Quickest fix: send /connect 2 and I'll walk you through it from your phone (about 5 minutes).")
 
 
 def _token(force=False):

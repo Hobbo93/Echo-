@@ -23,8 +23,8 @@ PENDING = DIR / "email_pending.json"
 SENT_LOG = DIR / "emails_sent.json"
 PENDING_MINUTES = 240
 
-NOT_CONNECTED = ("I can't send emails yet: your Gmail isn't connected. Follow EMAIL_SETUP.md (make a Google "
-                 "app password, about 3 minutes), then double-click connect_echo.bat and paste it in.")
+NOT_CONNECTED = ("I can't send emails yet: your Gmail isn't connected. Quickest fix: send /connect 3 and "
+                 "I'll walk you through it from your phone (about 3 minutes).")
 
 
 def _settings():

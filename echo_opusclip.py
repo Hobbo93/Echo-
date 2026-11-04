@@ -44,9 +44,8 @@ PLATFORMS = {"youtube": "YOUTUBE", "yt": "YOUTUBE", "shorts": "YOUTUBE", "instag
 NICE = {"YOUTUBE": "YouTube", "INSTAGRAM_BUSINESS": "Instagram", "TIKTOK_BUSINESS": "TikTok",
         "FACEBOOK_PAGE": "Facebook", "LINKEDIN": "LinkedIn", "TWITTER": "X"}
 
-NOT_CONNECTED = ("I'm not connected to OpusClip yet, so I can't make or post clips. One-time setup: in the "
-                 "OpusClip dashboard copy your API key (bottom-left corner), then double-click "
-                 "connect_echo.bat on the PC and paste it in. Never send the key in chat.")
+NOT_CONNECTED = ("I'm not connected to OpusClip yet, so I can't make or post clips. Quickest fix: send "
+                 "/connect 1 and I'll walk you through it from your phone (about 2 minutes).")
 
 
 class OpusError(RuntimeError):

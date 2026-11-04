@@ -6,6 +6,17 @@ My ai
 1. Install [Python 3.11+](https://www.python.org/downloads/) (tick **Add python.exe to PATH**) and [Ollama](https://ollama.com).
 2. Double-click **`setup_echo.bat`**. It installs everything, downloads the AI model, asks for your Telegram details (see `TELEGRAM_SETUP.md`; you can skip them and add them later) and checks everything is working.
 
+## Connect the offices to your accounts (from your phone)
+
+Send **/connect** on Telegram. Echo lists what's connected (🟢) and what isn't (🔴), then `/connect 1` walks you through one account step by step, with links. You paste each key into the chat; Echo saves it on the PC, **deletes your message straight away**, and tests it.
+
+1. **OpusClip:** the Content Creator makes clips and posts to your YouTube, TikTok and Instagram.
+2. **Shopify:** the Shopify Manager handles orders, stock, products, prices and discount codes.
+3. **Gmail:** the Sales Agent and Support send your emails.
+4. **Alpaca:** the Day Trading Desk places the trades you approve (practice money first).
+
+Every outside action still waits for your Yes. If Echo ever sees something that looks like a password or key in normal chat, it deletes it and never saves it. (`connect_echo.bat` on the PC still works too, and is the most private option.)
+
 ## Talking to Echo
 
 - **On your PC:** in Echo HQ, press **📞 Call Echo** and just talk. Echo listens, answers out loud and keeps the conversation going. Tap **✋ Interrupt** to cut in, say "bye" or tap **Hang up** to finish. Use Chrome or Edge, and allow the microphone. (Chrome turns your speech into text using Google's servers; Echo's answers still come from your PC.)
