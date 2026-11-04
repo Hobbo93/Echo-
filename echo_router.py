@@ -154,6 +154,7 @@ COMMANDS_HELP = (
     "- Clips: \"clip this <link>\" or /clip latest; post: \"post clip 1 to youtube and instagram at 6pm\"\n"
     "- Shopify: \"show my products\", \"change Dog Bed price to $49\", \"add a dog jacket to my store, $39.95\"\n"
     "- Email: \"email bob@example.com about ...\" · Trading: /trade propose · Research: /research add TOPIC\n"
-    "- Is something connected? \"are you connected to shopify?\" runs a real check.\n"
+    "- Is something connected? \"are you connected to shopify?\" runs a real check.\n"    "- On the PC: \"search youtube for ...\", \"google ...\", \"open my shopify admin\", /screen for a screenshot. "
+    "Echo can open pages and show the screen, but can't click, type or take over the computer.\n"
     "Only say a service is connected if it's in the connected list above."
 )
