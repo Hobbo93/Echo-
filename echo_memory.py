@@ -213,8 +213,9 @@ def context_for(message, limit=6, always=("about_you",), always_limit=8):
 # CONVERSATIONS AND SUMMARIES
 # ==========================================
 
-def log_turn(channel, user_text, reply, summarise=True):
-    """Keep one back-and-forth. Long chats get summarised in the background."""
+def log_turn(channel, user_text, reply, summarise=False):
+    """Keep one back-and-forth. Chats are summarised later by the scheduler, once they go quiet,
+    so summaries never slow down a conversation (summarise=True forces one now for very long chats)."""
     with _lock, closing(connect()) as db:
         now = _now()
         db.executemany("INSERT INTO turns (channel, role, content, created_at) VALUES (?, ?, ?, ?)",

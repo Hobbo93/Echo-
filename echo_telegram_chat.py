@@ -92,7 +92,9 @@ def ask_echo(message, spoken=False):
             system += "\n\nSummary of your last conversation:\n" + earlier
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
-    payload = {"model": echo_brain.model(), "messages": messages, "stream": False}
+    echo_brain.mark_active()
+    payload = {"model": echo_brain.model(), "messages": messages, "stream": False,
+               "keep_alive": echo_brain.KEEP_ALIVE}
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
     try:

@@ -374,6 +374,8 @@ def research_step(now=None, notify=None, ask=None):
 
 def tick(now=None, notify=None, ask=None):
     now = now or datetime.now()
+    if echo_brain.owner_active():
+        return  # the owner is talking to Echo: research and the review wait for a quiet spell
     research_step(now, notify, ask)
     s = _load()
     day = now.date().isoformat()

@@ -19,6 +19,8 @@ import echo_business
 import echo_memory
 import echo_growth
 import echo_opusclip
+import echo_brain
+import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -266,11 +268,36 @@ def run_phone_checkins(schedule):
 _last_memory_tidy = [0.0]
 
 
+_background = {"thread": None}
+
+
+def run_in_background(name, job):
+    """Run a slow AI job (research, summaries) without holding up the 60-second loop, one at a time,
+    and only while the owner isn't talking to Echo (so chats and phone calls get the AI first)."""
+    t = _background["thread"]
+    if (t and t.is_alive()) or echo_brain.owner_active():
+        return False
+
+    def runner():
+        try:
+            job()
+        except Exception as error:
+            print(f"{name} skipped:", error)
+    _background["thread"] = threading.Thread(target=runner, name=name, daemon=True)
+    _background["thread"].start()
+    return True
+
+
 def run_memory_summaries():
     """Every 30 minutes, turn finished chats into short memories (local model, free)."""
     if time.time() - _last_memory_tidy[0] < 1800:
         return
+    if not run_in_background("Memory summary", _summarise_chats):
+        return
     _last_memory_tidy[0] = time.time()
+
+
+def _summarise_chats():
     try:
         done = echo_memory.summarise_finished_chats()
         if done:
@@ -281,10 +308,7 @@ def run_memory_summaries():
 
 def run_growth():
     """Echo's own research (every 90 min, 7 AM-10 PM) and the evening review of how it talks."""
-    try:
-        echo_growth.tick(current_time(), notify=send_message)
-    except Exception as error:
-        print("Growth step skipped:", error)
+    run_in_background("Growth step", lambda: echo_growth.tick(current_time(), notify=send_message))
 
 
 _last_opus_check = [0.0]

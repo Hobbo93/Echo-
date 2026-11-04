@@ -241,7 +241,9 @@ def briefing():
 def ask_echo(history, message):
     messages = [{"role": "system", "content": _persona(message)}, *history,
                 {"role": "user", "content": message}]
+    echo_brain.mark_active()
     payload = {"model": echo_brain.fast_model(), "messages": messages, "stream": False,
+               "keep_alive": echo_brain.KEEP_ALIVE,
                "options": {"num_predict": 120}}  # short answers keep calls snappy
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
