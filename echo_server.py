@@ -23,6 +23,7 @@ import echo_memory
 import echo_growth
 import echo_router
 import echo_tradeshot
+import echo_brain
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -65,7 +66,6 @@ def allow_office_page(response):
     return response
 
 OLLAMA_URL = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-DEFAULT_MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 MAX_HISTORY = 16  # earlier messages sent back to the model for context
 
 # ==========================================
@@ -101,9 +101,7 @@ def ask_ollama(message, employee, history=()):
         system_prompt += "\n\n" + memories
 
     payload = {
-        "model": employee.get(
-            "model", DEFAULT_MODEL
-        ),
+        "model": echo_brain.resolve(employee.get("model")),
         "messages": [
             {
                 "role": "system",
@@ -433,8 +431,8 @@ def chat():
         detail = error.read().decode("utf-8", "replace")[:300]
         if error.code == 404:
             detail = (
-                f"Model '{employee.get('model', DEFAULT_MODEL)}' is not "
-                f"installed. Run: ollama pull {employee.get('model', DEFAULT_MODEL)}"
+                f"Model '{echo_brain.resolve(employee.get('model'))}' is not "
+                f"installed. Run: ollama pull {echo_brain.resolve(employee.get('model'))}"
             )
         return jsonify({
             "error": f"Ollama error {error.code}: {detail}"
@@ -464,7 +462,7 @@ def chat():
 def vision_status():
     return jsonify({
         "installed": echo_photos.has_vision(),
-        "model": echo_photos.VISION_MODEL,
+        "model": echo_photos.vision_model(),
         "size": echo_photos.VISION_SIZE,
         **echo_photos.pull_state
     })

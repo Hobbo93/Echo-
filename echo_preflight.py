@@ -4,10 +4,10 @@ Read-only checks: no changes to Echo, no Telegram messages, no trades.
 import ast
 import importlib.util
 import json
-import os
 import shutil
 import urllib.request
 from pathlib import Path
+import echo_brain
 
 ROOT = Path(__file__).resolve().parent
 MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
@@ -18,7 +18,7 @@ MODULES = ["echo_server.py", "echo_employees.py", "echo_tasks.py",
            "echo_setup.py", "echo_start.py", "echo_voice.py", "echo_phone.py"]
 def check_ollama():
     """Is Ollama running, and is Echo's model pulled?"""
-    model = os.getenv("ECHO_MODEL", "llama3.2")
+    model = echo_brain.model()
     try:
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=5) as response:
             names = [m.get("name", "") for m in json.load(response).get("models", [])]

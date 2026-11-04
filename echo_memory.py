@@ -22,10 +22,10 @@ import urllib.request
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+import echo_brain
 
 DB_PATH = Path(__file__).with_name("echo_memory.db")
 OLLAMA_URL = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 
 SUMMARY_AFTER = 20   # unsummarised messages in a chat before a summary is written
 KEEP_TURNS = 400     # raw messages kept per chat once summarised (older ones are deleted)
@@ -228,7 +228,7 @@ def log_turn(channel, user_text, reply, summarise=True):
 
 
 def _ask_model(prompt):
-    payload = {"model": MODEL, "stream": False, "options": {"num_predict": 220},
+    payload = {"model": echo_brain.model(), "stream": False, "options": {"num_predict": 220},
                "messages": [{"role": "user", "content": prompt}]}
     req = urllib.request.Request(OLLAMA_URL, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})

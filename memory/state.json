@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "PR #7 merged; all features on main (memory, growth, OpusClip, router, PC actions, guide, stop trading, chart screenshots)",
+  "checkpoint": "Bigger free brain built (echo_brain.py)",
   "next_actions": [
-    "Owner replies Yes to the Telegram update, sends /getvision",
-    "Owner connects Shopify/OpusClip/Gmail via connect_echo.bat"
+    "Owner sends /brain then /brain upgrade",
+    "Next free fixes offered: brain jam (background jobs), error log, keep model loaded, backups"
   ],
   "updated": "2026-11-04"
 }

@@ -109,7 +109,7 @@ def step(shoot=None, look=None):
     if not echo_photos.has_vision():
         _state.clear()
         return ("To guide you I need to see your screen, which needs the free photo brain on your PC "
-                f"({echo_photos.VISION_MODEL}, {echo_photos.VISION_SIZE}). Send /getvision to download it, "
+                f"({echo_photos.vision_model()}, {echo_photos.VISION_SIZE}). Send /getvision to download it, "
                 "then send your /guide again."), None
     try:
         path = shoot()

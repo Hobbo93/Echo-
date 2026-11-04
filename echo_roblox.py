@@ -23,12 +23,12 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
+import echo_brain
 
 ROOT = Path.home() / "Echo_roblox"
 MAPS = ROOT / "maps"
 QUEUE = ROOT / "queue"
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 
 TYPES = ["obby", "city", "arena", "nature", "race", "house"]
 SIZES = {"small": .6, "medium": 1.0, "large": 1.6}
@@ -89,7 +89,7 @@ def _ask_ollama(text):
     prompt = ("Turn this Roblox map request into JSON with keys: type (one of " + ", ".join(TYPES) +
               "), theme (one of " + ", ".join(THEMES) + "), size (small, medium or large), "
               "stages (number or null), name (short map name). Request: " + text)
-    body = json.dumps({"model": MODEL, "stream": False, "format": "json",
+    body = json.dumps({"model": echo_brain.model(), "stream": False, "format": "json",
                        "messages": [{"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(OLLAMA, body, {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=40) as r:

@@ -20,11 +20,11 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
+import echo_brain
 
 DIR = Path.home() / "Echo_business"
 RECORDS = DIR / "records"
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 
 # Office-wide rules, added to every employee's instructions.
 OFFICE_RULES = (
@@ -74,7 +74,7 @@ def records_today():
 
 
 def ask_ai(prompt, system="You are a helpful business assistant. Be concise and practical.", timeout=120):
-    body = json.dumps({"model": MODEL, "stream": False, "messages": [
+    body = json.dumps({"model": echo_brain.model(), "stream": False, "messages": [
         {"role": "system", "content": system}, {"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(OLLAMA, body, {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:

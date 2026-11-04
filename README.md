@@ -51,9 +51,13 @@ Say "search youtube for dog grooming tips", "google cheap dog beds", "open my sh
 
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.
 
+## A smarter brain (free)
+
+Send `/brain` on Telegram. Echo checks your PC's memory and graphics card and recommends the best free AI model it can run. `/brain upgrade` downloads it (it can take a while), tests it and switches every part of Echo over. `/brain small` goes back to the small, fast model. Phone calls keep a fast model unless your PC has a good graphics card.
+
 ## Echo learns and tells the truth
 
 - **Honest answers:** Echo is told to say "I don't know" instead of guessing, to point out problems, and never to claim it did something it didn't. It knows exactly which services are really connected. If a reply still claims something happened (like "I've posted it") or quotes "live" prices, Echo adds a ⚠️ honesty note.
 - **Learns from you:** say "that's not true", "stop telling me what I want to hear", or `/feedback ...`. Echo saves it as a lesson. Every evening at 8:30 PM it reviews the day and updates how it talks to you, then sends you a short report. `/learned` shows what it has learned.
 - **Researches while your PC is on:** every 90 minutes between 7 AM and 10 PM, Echo looks up one topic from real sources (Google News and Wikipedia, free) and saves notes with the sources. It researches what you ask first (`/research add dog bed prices` or "research cheap dog toys for me"), then questions it couldn't answer, then topics for your businesses. `/research` shows the list and the latest findings.
-- **Smarter answers:** the default model (`llama3.2`) is small and makes things up more often. If your PC has 16 GB+ of memory, run `ollama pull qwen2.5:7b` and type `qwen2.5:7b` into an employee's **AI Model** box in Echo HQ.
+- **Smarter answers:** the default model (`llama3.2`) is small and makes things up more often. Send `/brain` to get a bigger free model if your PC can run it.

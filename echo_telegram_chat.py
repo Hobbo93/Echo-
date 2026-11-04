@@ -22,7 +22,6 @@ TOKEN, CHAT_ID = chat_bot_credentials()
 HISTORY_TURNS = 8  # remembered back-and-forth exchanges
 history = []
 OLLAMA = os.getenv("ECHO_OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
-MODEL = os.getenv("ECHO_MODEL", "llama3.2")
 
 import echo_voice
 import echo_photos
@@ -41,6 +40,7 @@ import echo_router
 import echo_computer
 import echo_guide
 import echo_tradeshot
+import echo_brain
 
 
 def telegram(method, params=None):
@@ -92,14 +92,14 @@ def ask_echo(message, spoken=False):
             system += "\n\nSummary of your last conversation:\n" + earlier
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
-    payload = {"model": MODEL, "messages": messages, "stream": False}
+    payload = {"model": echo_brain.model(), "messages": messages, "stream": False}
     req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
                                  {"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=180) as r:
             reply = json.load(r).get("message", {}).get("content", "No response received.")
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {MODEL}") from None
+        raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {echo_brain.model()}") from None
     except urllib.error.URLError:
         raise RuntimeError("Cannot reach Ollama. Make sure the Ollama app is running.") from None
     reply = echo_growth.check_reply(reply)
@@ -388,6 +388,12 @@ def handle_command(text):
             telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         send(CHAT_ID, office)
         return True
+    if lower.startswith("/brain") or re.search(r"\b(upgrade|improve) (your|echo'?s?) brain\b|\b(bigger|smarter) (ai )?model\b", lower):
+        cmd = text if lower.startswith("/brain") else ("/brain upgrade" if "upgrade" in lower else "/brain")
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_brain.handle, cmd, lambda m: send(CHAT_ID, m))),
+                         daemon=True).start()
+        return True
     if lower.startswith("/learned"):
         send(CHAT_ID, echo_growth.describe_learning())
         return True
@@ -462,7 +468,7 @@ def handle_command(text):
         if echo_photos.has_vision():
             send(CHAT_ID, "I can already see photos. Send me one!")
             return True
-        send(CHAT_ID, "Downloading " + echo_photos.VISION_MODEL + " (" + echo_photos.VISION_SIZE +
+        send(CHAT_ID, "Downloading " + echo_photos.vision_model() + " (" + echo_photos.VISION_SIZE +
              "). I'll tell you when it's ready.")
         def pull():  # in the background so you can keep chatting
             try:
@@ -609,6 +615,7 @@ def handle_command(text):
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
+             "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")
