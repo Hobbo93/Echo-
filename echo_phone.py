@@ -247,6 +247,12 @@ def ask_echo(history, message):
                                  {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=12) as r:  # Twilio waits 15s at most
         reply = json.load(r).get("message", {}).get("content", "").strip()
+    try:
+        import echo_growth
+        if echo_growth.check_reply(reply) != reply:  # it claimed something that didn't happen
+            reply += " Actually, to be honest, I can't really do that from a call, so it hasn't happened."
+    except Exception:
+        pass
     _log("phone", message, reply)
     return reply
 

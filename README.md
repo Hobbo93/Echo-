@@ -36,3 +36,10 @@ Other tools you can run by hand:
 | Prepare a video clip | `py echo_content.py video.mp4 --start 0 --length 30` (needs FFmpeg) |
 
 Echo never publishes, trades, spends money or contacts anyone without your approval.
+
+## Echo learns and tells the truth
+
+- **Honest answers:** Echo is told to say "I don't know" instead of guessing, to point out problems, and never to claim it did something it didn't. It knows exactly which services are really connected. If a reply still claims something happened (like "I've posted it") or quotes "live" prices, Echo adds a ⚠️ honesty note.
+- **Learns from you:** say "that's not true", "stop telling me what I want to hear", or `/feedback ...`. Echo saves it as a lesson. Every evening at 8:30 PM it reviews the day and updates how it talks to you, then sends you a short report. `/learned` shows what it has learned.
+- **Researches while your PC is on:** every 90 minutes between 7 AM and 10 PM, Echo looks up one topic from real sources (Google News and Wikipedia, free) and saves notes with the sources. It researches what you ask first (`/research add dog bed prices` or "research cheap dog toys for me"), then questions it couldn't answer, then topics for your businesses. `/research` shows the list and the latest findings.
+- **Smarter answers:** the default model (`llama3.2`) is small and makes things up more often. If your PC has 16 GB+ of memory, run `ollama pull qwen2.5:7b` and type `qwen2.5:7b` into an employee's **AI Model** box in Echo HQ.

@@ -9,3 +9,4 @@ Format: date — decision — why.
 - Standing — every outside action needs the owner's Yes; no secrets in the repo.
 - 2026-11-04 — .claude/ (session hook, agents, permission allowlist) needs the owner's explicit approval — writing Claude's own settings is blocked by the safety check
 - 2026-11-04 — Office look = night/dusk neon (owner's reference image, Nov 2026); keep department colours from DEPTS in Office.html
+- 2026-11-04 — Echo's self-improvement changes only its talking rules (max 8, unsafe ones filtered) and memory; it never edits its own code or safety rules — keeps the owner in control
