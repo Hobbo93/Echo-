@@ -1,43 +1,26 @@
-import json
-from pathlib import Path
-
-MEMORY_FILE = Path.home() / ".echo_memory.json"
+"""Older simple memory, kept so anything that still imports it keeps working.
+Everything now goes into Echo's shared memory (echo_memory.py); anything saved
+in the old ~/.echo_memory.json file is copied in automatically, once."""
+import echo_memory
 
 
 def load_memory():
-    if MEMORY_FILE.exists():
-        try:
-            with open(MEMORY_FILE, "r") as file:
-                return json.load(file)
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+    return {r["content"].split(": ", 1)[0]: r["content"].split(": ", 1)[-1]
+            for r in echo_memory.recall("note", 500)}
 
 
 def remember(key, value):
-    memory = load_memory()
-    memory[key] = value
-
-    with open(MEMORY_FILE, "w") as file:
-        json.dump(memory, file, indent=4)
-
+    echo_memory.remember("note", f"{key}: {value}")
     return f"Echo remembered: {key}"
 
 
 def recall(key):
-    memory = load_memory()
-    return memory.get(key, "I don't remember that yet.")
+    return load_memory().get(key, "I don't remember that yet.")
 
 
 def forget(key):
-    memory = load_memory()
-
-    if key in memory:
-        del memory[key]
-
-        with open(MEMORY_FILE, "w") as file:
-            json.dump(memory, file, indent=4)
-
-        return "Memory forgotten."
-
+    for r in echo_memory.recall("note", 500):
+        if r["content"].split(": ", 1)[0] == key:
+            echo_memory.forget(r["id"])
+            return "Memory forgotten."
     return "Memory not found."

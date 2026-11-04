@@ -1,0 +1,10 @@
+{
+  "objective": "Merge the memory upgrade to main, then build the OpusClip connection once approved",
+  "checkpoint": "Claude setup done except .claude/settings.json (owner adds it on GitHub)",
+  "next_actions": [
+    "Owner adds .claude/settings.json",
+    "Owner approves PR to main",
+    "OpusClip connection once approved"
+  ],
+  "updated": "2026-11-04"
+}

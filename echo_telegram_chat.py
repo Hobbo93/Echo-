@@ -34,6 +34,8 @@ import echo_email
 import echo_connections
 import echo_personality
 import echo_business
+import echo_memory
+import echo_growth
 
 
 def telegram(method, params=None):
@@ -78,7 +80,11 @@ VOICE_STYLE = (" The user sent a voice note and will hear your reply spoken alou
 
 def ask_echo(message, spoken=False):
     echo_personality.feel(message)
-    system = echo_personality.persona(spoken)
+    system = echo_personality.persona(spoken, message)
+    if not history:  # fresh start (or Echo restarted): pick up where the last chat left off
+        earlier = echo_memory.last_summary("telegram")
+        if earlier:
+            system += "\n\nSummary of your last conversation:\n" + earlier
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
     payload = {"model": MODEL, "messages": messages, "stream": False}
@@ -91,9 +97,15 @@ def ask_echo(message, spoken=False):
         raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {MODEL}") from None
     except urllib.error.URLError:
         raise RuntimeError("Cannot reach Ollama. Make sure the Ollama app is running.") from None
+    reply = echo_growth.check_reply(reply)
+    echo_growth.after_reply(message, reply)
     history.extend([{"role": "user", "content": message},
                     {"role": "assistant", "content": reply}])
     del history[:-HISTORY_TURNS * 2]
+    try:
+        echo_memory.log_turn("telegram", message, reply)
+    except Exception:
+        pass  # memory problems must never stop a reply
     return reply
 
 
@@ -266,6 +278,31 @@ def handle_command(text):
         if cmd == "summary" or lower.startswith("pitch") or lower.startswith("reply"):
             telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         send(CHAT_ID, office)
+        return True
+    if lower.startswith("/learned"):
+        send(CHAT_ID, echo_growth.describe_learning())
+        return True
+    if lower.startswith("/research"):
+        topic = re.sub(r"^/research\s*(add\b)?\s*", "", text, flags=re.I).strip()
+        send(CHAT_ID, echo_growth.queue(topic) if topic else echo_growth.describe_research())
+        return True
+    m = re.match(r"^(?:can you |could you |please )?(?:research|look into|find out about)\s+(.{4,120}?)(?: for me)?[.?!]*$", lower)
+    if m:
+        send(CHAT_ID, echo_growth.queue(m.group(1)))
+        return True
+    # A correction ("that's not true") becomes a lesson. A question ("be honest, is this
+    # a good idea?") isn't a correction, so it goes on to be answered normally.
+    if echo_growth.is_feedback(text) and "?" not in text:
+        last = next((h["content"] for h in reversed(history) if h["role"] == "assistant"), "")
+        send(CHAT_ID, echo_growth.record_feedback(text, last))
+        return True
+    if lower.startswith("/memories"):
+        send(CHAT_ID, echo_memory.describe())
+        return True
+    m = re.match(r"^/forget\s+#?(\d+)$", lower)
+    if m:
+        send(CHAT_ID, "Forgotten. 🗑️" if echo_memory.forget(int(m.group(1)))
+             else "I couldn't find memory #" + m.group(1) + ". Send /memories to see the numbers.")
         return True
     reply = echo_personality.remember(text) or echo_personality.set_name(text)
     if reply:
@@ -456,6 +493,9 @@ def handle_command(text):
              "• /money · income 500 website for Joe · expense 30 OpusClip\n"
              "• enquiry <name>: <message> · /tickets · my goal is ...\n"
              "• /callme - I ring your phone\n"
+             "• remember that ... · /memories - what I remember · /forget 12\n"
+             "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
+             "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")
         return True
     return False

@@ -16,6 +16,8 @@ from echo_telegram import send_report, send_alert, send_message
 import echo_leads
 import echo_trading
 import echo_business
+import echo_memory
+import echo_growth
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
 
@@ -260,6 +262,30 @@ def run_phone_checkins(schedule):
         print("Phone check-in failed:", exc)
 
 
+_last_memory_tidy = [0.0]
+
+
+def run_memory_summaries():
+    """Every 30 minutes, turn finished chats into short memories (local model, free)."""
+    if time.time() - _last_memory_tidy[0] < 1800:
+        return
+    _last_memory_tidy[0] = time.time()
+    try:
+        done = echo_memory.summarise_finished_chats()
+        if done:
+            print(f"Echo memory: summarised {done} finished chat(s).")
+    except Exception as error:
+        print("Memory summary skipped:", error)
+
+
+def run_growth():
+    """Echo's own research (every 90 min, 7 AM-10 PM) and the evening review of how it talks."""
+    try:
+        echo_growth.tick(current_time(), notify=send_message)
+    except Exception as error:
+        print("Growth step skipped:", error)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -347,6 +373,8 @@ def run_daily_schedule():
     run_ceo_summary(schedule)
     run_ops_check(schedule)
     run_phone_checkins(schedule)
+    run_memory_summaries()
+    run_growth()
 
     now = current_time().strftime("%H:%M")
 

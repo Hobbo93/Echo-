@@ -19,6 +19,8 @@ import echo_email
 import echo_connections
 import echo_trading
 import echo_business
+import echo_memory
+import echo_growth
 import time as _time
 import threading
 from flask import Flask, request, jsonify, send_file
@@ -85,6 +87,16 @@ def ask_ollama(message, employee, history=()):
         "or contact businesses. "
         + echo_business.OFFICE_RULES
     )
+    try:  # honesty rules, real connections and lessons learned from the owner
+        system_prompt += "\n\n" + echo_growth.prompt_block()
+    except Exception:
+        pass
+    try:  # memories that match this message, shared by every employee
+        memories = echo_memory.context_for(message, limit=5, always_limit=5)
+    except Exception:
+        memories = ""
+    if memories:
+        system_prompt += "\n\n" + memories
 
     payload = {
         "model": employee.get(
@@ -394,6 +406,12 @@ def chat():
                 employee,
                 history
             )
+            reply = echo_growth.check_reply(reply)
+            echo_growth.after_reply(message, reply)
+            try:
+                echo_memory.log_turn("office:" + employee["name"], message, reply)
+            except Exception:
+                pass  # memory problems must never stop a reply
 
         return jsonify({
             "reply": reply,

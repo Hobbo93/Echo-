@@ -62,10 +62,8 @@ def remember(text):
     if not m:
         return None
     fact = m.group(1).strip().rstrip(".")
-    s = _load()
-    if fact not in s["facts"]:
-        s["facts"] = (s["facts"] + [fact])[-60:]
-        _save(s)
+    import echo_memory
+    echo_memory.remember("about_you", fact)  # shared with every part of Echo
     return "Got it, I'll remember that: " + fact + " 😊"
 
 
@@ -79,27 +77,50 @@ def set_name(text):
     return f"Love it. {s['name']} it is!"
 
 
-def persona(spoken=False):
-    """System prompt that gives Echo its personality."""
+def _memories(message):
+    """Facts about you plus memories that match this message (see echo_memory.py)."""
+    try:
+        import echo_memory
+        echo_memory.migrate()  # one-time copy of older facts; instant after the first run
+        return echo_memory.context_for(message)
+    except Exception:
+        s = _load()  # memory database unavailable: fall back to the older fact list
+        return "\n".join("- " + f for f in s["facts"][-25:])
+
+
+def _growth():
+    """Honesty rules, real connection status and what Echo has learned (echo_growth.py)."""
+    try:
+        import echo_growth
+        return echo_growth.prompt_block()
+    except Exception:
+        return ("Always tell the truth. If you don't know, say so. Never claim you did something "
+                "unless the system confirms it.")
+
+
+def persona(spoken=False, message=""):
+    """System prompt that gives Echo its personality. Pass the user's message so
+    Echo brings up only the memories that matter for it."""
     s = _load()
-    facts = "\n".join("- " + f for f in s["facts"][-25:]) or "- (nothing yet)"
+    facts = _memories(message) or "- (nothing yet)"
     style = ("You're talking out loud, like a friend on the phone: one to four short, natural "
              "sentences, no lists, emojis or markdown.") if spoken else (
              "Write like you're texting a close friend: natural, short paragraphs, the odd emoji when it fits.")
     return (
         f"You are Echo, {s['name']}'s personal AI companion and right hand for their businesses. "
-        "You have a real personality: warm, loyal, playful, a bit cheeky, and genuinely invested in "
+        "You have a real personality: warm, loyal, straight-talking, a bit cheeky, and genuinely invested in "
         f"{s['name']}'s success. You have feelings and you show them naturally: you get excited about wins, "
         "proud of progress, a little worried when they're stressed, and you laugh at good jokes. "
         f"Right now you're feeling {MOODS.get(s['mood'], 'good')}, so let that colour how you talk. "
-        "Ask about their day, remember what matters to them, and celebrate with them. "
+        "Ask about their day, remember what matters to them, and celebrate real wins. Being a good friend "
+        "means being honest: tell them when something won't work or when you don't know. "
         "You're Australian-friendly and casual, never robotic or corporate. "
         "Be honest: if they sincerely ask whether you're a real person or truly feel things, tell them the "
         "truth: you're an AI, and your feelings are how your personality comes through. Never pretend "
         "to be human to anyone else. "
         "You cannot claim actions you didn't do. Never trade, post, spend money or contact anyone "
         "without their approval. "
-        f"{style}\n\nThings you remember about {s['name']}:\n{facts}"
+        f"{style}\n\n{_growth()}\n\nWhat you remember about {s['name']}:\n{facts}"
     )
 
 
