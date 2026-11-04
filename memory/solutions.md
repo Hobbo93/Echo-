@@ -5,3 +5,4 @@
 - **Long work in the background on the PC:** add a `run_*` step to `run_daily_schedule()` in `echo_scheduler.py`, rate-limited with a module-level timestamp.
 - **New Telegram command:** add a branch in `handle_command()` before the "remember that" handler, and a line in the help text.
 - 2026-11-04 **Research without API keys:** Google News RSS (news.google.com/rss/search?q=...&hl=en-AU&gl=AU&ceid=AU:en) + Wikipedia search API; see echo_growth.fetch_sources
+- 2026-11-04 **Free business data:** Overpass API (overpass.private.coffee works; overpass-api.de often resets) — query nwr[shop|amenity|craft][name] in a small bbox; skip elements with brand* tags (chains)

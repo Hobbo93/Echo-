@@ -24,6 +24,7 @@ import echo_log
 import echo_backup
 import echo_health
 import echo_ceo
+import echo_sales
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -382,6 +383,23 @@ def run_ceo_plan(schedule):
             send_message(text)
 
 
+def run_sales(schedule):
+    """9 AM: who's due a follow-up. Mondays: the website sales scoreboard."""
+    now = current_time()
+    if now.hour < 9 or schedule.get("last_sales_nudge") == today():
+        return
+    schedule["last_sales_nudge"] = today()
+    save_schedule(schedule)
+    try:
+        nudge = echo_sales.morning_nudge()
+        if nudge:
+            send_message(nudge)
+        if now.weekday() == 0 and echo_business._pipeline():
+            send_message(echo_sales.scoreboard())
+    except Exception as exc:
+        echo_log.error("sales reminder", exc)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -390,10 +408,7 @@ def run_lead_research(schedule):
         return
     schedule["last_leads"] = date
     save_schedule(schedule)
-    if not echo_leads.API_KEY:
-        print("Lead research skipped: no Google Places key set.")
-        return
-    result = echo_leads.research_leads()
+    result = echo_leads.research_leads()  # Google Places if there's a key, otherwise free OpenStreetMap
     print(f"Lead research done: {result['researched']} businesses.")
     send_message(echo_leads.summary(result))
 
@@ -476,6 +491,7 @@ def run_daily_schedule():
     run_backup()
     run_weekly_health(schedule)
     run_ceo_plan(schedule)
+    run_sales(schedule)
 
     now = current_time().strftime("%H:%M")
 

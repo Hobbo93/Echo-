@@ -24,7 +24,7 @@ SERVICES = [  # (words you might use, service name in echo_connections, what to 
     (r"g ?mail|e-?mails?", "Your Gmail", "\"email bob@example.com about the website quote\""),
     (r"alpaca|broker|trad(e|es|ing)|stocks?|shares", "Alpaca broker", "\"/trade propose\""),
     (r"twilio|phone|calls?|ring", "Twilio", "\"/callme\""),
-    (r"google places|places|leads?", "Google Places", "\"/leads\""),
+    (r"google places|places|leads?", "Lead finder", "\"/leads\""),
     (r"telegram", "Telegram bots", ""),
     (r"ollama|brain|ai model|model", "Ollama on this PC", ""),
     (r"base44|websites?", "Base44", ""),
