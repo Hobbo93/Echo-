@@ -41,6 +41,8 @@ Echo never publishes, trades, spends money or contacts anyone without your appro
 
 Say "search youtube for dog grooming tips", "google cheap dog beds", "open my shopify admin" or "open gmail", and Echo opens it on the PC and sends you a screenshot. `/screen` (or "show me my screen") sends a picture of the screen any time. Echo only opens web pages; it never clicks, types or enters passwords.
 
+**Guide mode:** `/guide connect my shopify store` (or "walk me through ...", "show me how to ..."). Echo looks at your screen, sends the screenshot with the next step ("click the green Create app button, top right"), and you do the clicking. Reply `next` after each step, `stop` to finish. Needs the free photo brain (`/getvision`).
+
 ## Short videos with OpusClip
 
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.

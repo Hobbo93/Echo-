@@ -39,6 +39,7 @@ import echo_growth
 import echo_opusclip
 import echo_router
 import echo_computer
+import echo_guide
 
 
 def telegram(method, params=None):
@@ -234,6 +235,24 @@ def handle_command(text):
             send(CHAT_ID, echo_email.approve(), NO_KEYBOARD)
         except Exception as exc:
             send(CHAT_ID, "The email was NOT sent: " + str(exc)[:300], NO_KEYBOARD)
+        return True
+    if echo_guide.wants_stop(text):
+        send(CHAT_ID, echo_guide.stop())
+        return True
+    if echo_guide.is_start(text) or echo_guide.wants_next(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_photo"})
+        starting = echo_guide.is_start(text)
+
+        def guide():
+            tip, shot = echo_guide.start(text) if starting else echo_guide.step()
+            if shot:
+                try:
+                    send_photo(CHAT_ID, shot, tip[:1000])
+                    return
+                except Exception:
+                    pass
+            send(CHAT_ID, tip)
+        threading.Thread(target=guide, daemon=True).start()
         return True
     pc = echo_computer.plan(text)
     if pc:
@@ -566,6 +585,7 @@ def handle_command(text):
              "• remember that ... · /memories - what I remember · /forget 12\n"
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
+             "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")
