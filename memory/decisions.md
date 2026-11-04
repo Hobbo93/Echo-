@@ -8,3 +8,4 @@ Format: date — decision — why.
 - 2026-11-04 — YouTube/Instagram/TikTok posting goes through OpusClip's API (accounts already linked there), not separate Google/Meta developer apps.
 - Standing — every outside action needs the owner's Yes; no secrets in the repo.
 - 2026-11-04 — .claude/ (session hook, agents, permission allowlist) needs the owner's explicit approval — writing Claude's own settings is blocked by the safety check
+- 2026-11-04 — Office look = night/dusk neon (owner's reference image, Nov 2026); keep department colours from DEPTS in Office.html
