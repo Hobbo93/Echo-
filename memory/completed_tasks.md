@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 OpusClip connection (echo_opusclip.py): /clip LINK|latest → Yes → project; scheduler checks every 5 min and sends numbered clips; /post N platforms [at time] → OpusClip social copy → Yes → post-tasks/publish-schedules; /clips /opus; setup + connections entry; 8 tests with fake API
 - 2026-11-04 PR #2 merged to main (memory, growth, night office, Claude workspace); PC installs after owner's Telegram Yes
 - 2026-11-04 Claude .claude/ setup: session-start hook (tested: installs .venv tools, 0.05 s when cached, prints briefing), explorer/reviewer/tester agents, /checkpoint skill. settings.json still needs the owner
 - 2026-11-04 Echo growth (echo_growth.py): honesty rules + real connection list in every prompt, check_reply flags fake action/live-data claims, corrections → lessons → nightly rewritten talking rules (unsafe rules filtered), research every 90 min 7AM-10PM from Google News RSS + Wikipedia with sources, /research /learned /feedback, evening growth report

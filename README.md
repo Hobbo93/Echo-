@@ -37,6 +37,10 @@ Other tools you can run by hand:
 
 Echo never publishes, trades, spends money or contacts anyone without your approval.
 
+## Short videos with OpusClip
+
+Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.
+
 ## Echo learns and tells the truth
 
 - **Honest answers:** Echo is told to say "I don't know" instead of guessing, to point out problems, and never to claim it did something it didn't. It knows exactly which services are really connected. If a reply still claims something happened (like "I've posted it") or quotes "live" prices, Echo adds a ⚠️ honesty note.

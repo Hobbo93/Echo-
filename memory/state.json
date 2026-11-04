@@ -1,9 +1,9 @@
 {
   "objective": "Build Echo's OpusClip connection (YouTube/Instagram/TikTok posting) when the owner says go",
-  "checkpoint": "PR #2 merged to main",
+  "checkpoint": "OpusClip connection built",
   "next_actions": [
-    "Owner adds .claude/settings.json on main",
-    "OpusClip connection for Echo"
+    "Owner adds .claude/settings.json and OpusClip API key",
+    "Owner merges the OpusClip PR"
   ],
   "updated": "2026-11-04"
 }
