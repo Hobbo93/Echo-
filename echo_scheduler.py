@@ -21,6 +21,7 @@ import echo_growth
 import echo_opusclip
 import echo_brain
 import echo_log
+import echo_backup
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -343,6 +344,15 @@ def run_error_report(schedule):
         send_message(msg)
 
 
+def run_backup():
+    """Nightly backup of memory, records and settings (not keys) to OneDrive/Documents."""
+    if echo_backup.due(current_time().replace(tzinfo=None)):
+        def job():
+            path, text = echo_backup.backup_now()
+            print(text)
+        run_in_background("Backup", job)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -434,6 +444,7 @@ def run_daily_schedule():
     run_growth()
     run_opusclip_check()
     run_error_report(schedule)
+    run_backup()
 
     now = current_time().strftime("%H:%M")
 

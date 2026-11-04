@@ -42,6 +42,7 @@ import echo_guide
 import echo_tradeshot
 import echo_brain
 import echo_log
+import echo_backup
 
 
 def telegram(method, params=None):
@@ -398,6 +399,15 @@ def handle_command(text):
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_brain.handle, cmd, lambda m: send(CHAT_ID, m))),
                          daemon=True).start()
         return True
+    if lower.startswith("/backup") or re.search(r"\bback ?up (now|echo|everything|my stuff)\b", lower):
+        def do_backup():
+            try:
+                send(CHAT_ID, echo_backup.backup_now()[1] + "\n(Your keys and passwords are never included.)")
+            except Exception as exc:
+                echo_log.error("backup", exc)
+                send(CHAT_ID, "❌ Backup failed: " + str(exc)[:200])
+        threading.Thread(target=do_backup, daemon=True).start()
+        return True
     if lower.startswith("/errors") or re.search(r"\b(what'?s|anything|is anything) (broken|wrong)\b", lower):
         send(CHAT_ID, echo_log.summary(72) or "✅ No problems logged in the last 3 days.")
         return True
@@ -622,7 +632,7 @@ def handle_command(text):
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
-             "• /errors - anything that went wrong lately\n"
+             "• /errors - anything that went wrong lately · /backup - back up Echo now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
