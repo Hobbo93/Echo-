@@ -44,6 +44,7 @@ import echo_brain
 import echo_log
 import echo_backup
 import echo_health
+import echo_ceo
 
 
 def telegram(method, params=None):
@@ -400,6 +401,12 @@ def handle_command(text):
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_brain.handle, cmd, lambda m: send(CHAT_ID, m))),
                          daemon=True).start()
         return True
+    if re.match(r"^/?done\s+#?\d{1,2}\b", lower) or lower.startswith("/plan") or re.search(
+            r"\b(this week'?s plan|weekly plan|what'?s the plan)\b", lower):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+        threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_ceo.handle, text) or "Send /plan for this week's plan."),
+                         daemon=True).start()
+        return True
     if lower.startswith("/health") or re.search(r"\b(health ?check|how are you running|are you (ok|okay|working))\b", lower):
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_health.report)), daemon=True).start()
@@ -637,6 +644,7 @@ def handle_command(text):
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"
+             "• /plan - the CEO's plan for this week from your goals · /done 2 - tick off task 2\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"

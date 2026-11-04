@@ -402,6 +402,12 @@ def ceo_summary():
             parts.append(st)
     except Exception as _exc:
         echo_log.error("echo_business", _exc)
+    try:
+        import echo_ceo
+        if echo_ceo.progress_line():
+            parts.append(echo_ceo.progress_line())
+    except Exception as _exc:
+        echo_log.error("echo_business", _exc)
     parts.append(status_text())
     facts = "\n".join(parts)
     goals = goals_text()

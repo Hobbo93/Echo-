@@ -23,6 +23,7 @@ import echo_brain
 import echo_log
 import echo_backup
 import echo_health
+import echo_ceo
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -364,6 +365,23 @@ def run_weekly_health(schedule):
     run_in_background("Health check", lambda: send_message(echo_health.report()))
 
 
+def run_ceo_plan(schedule):
+    """The CEO makes a weekly plan from your goals (Mondays, or when there isn't one), and from
+    8:30 AM each day sends today's top 3."""
+    now = current_time()
+    if now.hour >= 7 and echo_ceo.needs_new_plan(now.date()) and schedule.get("last_ceo_plan_try") != today():
+        if run_in_background("CEO plan", lambda: send_message(echo_ceo.make_plan(today=now.date()))):
+            schedule["last_ceo_plan_try"] = today()
+            save_schedule(schedule)
+        return
+    if now.strftime("%H:%M") >= "08:30" and schedule.get("last_morning_plan") != today():
+        schedule["last_morning_plan"] = today()
+        save_schedule(schedule)
+        text = echo_ceo.morning_text()
+        if text:
+            send_message(text)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -457,6 +475,7 @@ def run_daily_schedule():
     run_error_report(schedule)
     run_backup()
     run_weekly_health(schedule)
+    run_ceo_plan(schedule)
 
     now = current_time().strftime("%H:%M")
 
