@@ -1,9 +1,9 @@
 {
-  "objective": "Build Echo's OpusClip connection (YouTube/Instagram/TikTok posting) when the owner says go",
-  "checkpoint": "PR #7 holds stop-trading + chart screenshots, waiting for owner's go",
+  "objective": "Owner installs updates and connects keys; next upgrades only if free",
+  "checkpoint": "PR #7 merged; all features on main (memory, growth, OpusClip, router, PC actions, guide, stop trading, chart screenshots)",
   "next_actions": [
-    "Owner says go to merge PR #7",
-    "Owner installs updates, /getvision"
+    "Owner replies Yes to the Telegram update, sends /getvision",
+    "Owner connects Shopify/OpusClip/Gmail via connect_echo.bat"
   ],
   "updated": "2026-11-04"
 }
