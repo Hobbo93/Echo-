@@ -1,6 +1,8 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 Chart screenshot reading (echo_tradeshot.py): Telegram photo with trade caption or office photo to trading desk → vision reads ticker/price (caption ticker wins) → echo_trading.analyse on live data + echo_chart plan chart (entry/stop/target). Free; never trades. Drawing on the user's own screenshot not done (small model can't locate price levels reliably)
+- 2026-11-04 Trading stop button: 'stop trading' pauses at once (settings paused flag, cancels waiting idea, blocks propose/amount_trade/approve buys/evening idea); 'sell everything' → Yes → Alpaca close_all + paper sells; 'resume trading'. Checked before SELL_RE so 'sell everything' isn't read as a ticker
 - 2026-11-04 Guide mode (echo_guide.py): /guide GOAL → screenshot + local vision model (gemma3:4b) says the ONE next step; next/stop; written recipes for Shopify/OpusClip/Gmail keep it on track; never clicks or types. echo_computer now reuses echo_photos.screenshot
 - 2026-11-04 echo_computer.py (free PC actions from Telegram): search YouTube/Google/Maps/Amazon/eBay, open known sites (Shopify admin, Gmail, YouTube Studio...), /screen screenshot via PowerShell; only http(s) links, no clicking/typing
 - 2026-11-04 echo_router.py: Telegram connection questions answered by live checks (no more guessed 'yes'); plain-English requests routed to real tools (OpusClip clip/post, Shopify, email); office chat answers connection questions the same way; COMMANDS_HELP in every prompt

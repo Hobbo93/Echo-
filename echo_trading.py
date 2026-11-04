@@ -253,6 +253,12 @@ def handle(text):
     """Run a trading command. Returns a reply, or None if it isn't one."""
     t = text.strip()
     low = t.lower()
+    if STOP_RE.match(t):
+        return stop_trading()
+    if RESUME_RE.match(t):
+        return resume_trading()
+    if SELL_ALL_RE.match(t):
+        return sell_all_request()
     try:
         m = re.search(r"\b(?:put|invest|buy|spend|trade)\s+\$\s?([\d,]+(?:\.\d+)?)\s*(?:aud|usd|dollars)?\s*"
                       r"(?:in|into|on|of|worth of)?\s+" + SYMBOL, t, re.I)
@@ -407,6 +413,8 @@ def propose(s):
     """Save a pending trade and return (message, chart PNG bytes)."""
     import echo_broker
     import echo_chart
+    if is_paused():
+        return PAUSED_MSG, None
     qty, risk, equity = size_for(s)
     plan = {"symbol": s["symbol"], "direction": s.get("direction", "UP"), "qty": qty, "entry": s["price"],
             "stop": round(s["stop"], 2),
@@ -445,6 +453,8 @@ def amount_trade(symbol, amount):
     and asks Yes/No. After a Yes it buys, then sells for you when the stop or target hits."""
     import echo_broker
     import echo_chart
+    if is_paused():
+        return PAUSED_MSG
     symbol = symbol.upper()
     rows, meta = candles(symbol)
     price = float(meta.get("regularMarketPrice") or rows[-1][4])
@@ -538,6 +548,110 @@ def check_paper_exits():
     return said
 
 
+# ==========================================
+# STOP BUTTON: "Echo, stop trading" pauses everything at once
+# ==========================================
+
+STOP_RE = re.compile(r"^\s*(?:hey\s+)?(?:echo,?\s+)?(?:please\s+)?(?:/stoptrading\b|(?:stop|pause|halt|kill|freeze)\s+"
+                     r"(?:all\s+)?(?:the\s+|my\s+)?(?:trading|trades|day ?trading)\b)", re.I)
+RESUME_RE = re.compile(r"^\s*(?:hey\s+)?(?:echo,?\s+)?(?:please\s+)?(?:/resumetrading\b|(?:resume|restart|unpause|start)\s+"
+                       r"(?:the\s+|my\s+)?(?:trading|day ?trading)\b)", re.I)
+SELL_ALL_RE = re.compile(r"^\s*(?:hey\s+)?(?:echo,?\s+)?(?:please\s+)?(?:/sellall\b.*|(?:sell|close)\s+(?:out\s+)?"
+                         r"(?:everything|all(?:\s+(?:of\s+)?my)?(?:\s+(?:positions|trades|stocks|shares))?)\s*(?:now)?[.!]*)$", re.I)
+PAUSED_MSG = "⏸️ Trading is paused (you said stop). Say \"resume trading\" to turn it back on."
+
+
+def is_paused():
+    return bool(settings().get("paused"))
+
+
+def _holdings():
+    """Everything open right now: (broker symbols, paper symbols, open Trench trades)."""
+    import echo_broker
+    broker = []
+    if echo_broker.is_configured():
+        try:
+            broker = [p["symbol"] for p in echo_broker.positions()]
+        except Exception:
+            broker = ["(couldn't check the broker)"]
+    j = _load()
+    trench = [t["symbol"] for t in j.get("trench", []) if t.get("status") == "open"]
+    return broker, list(j["positions"]), trench
+
+
+def _holdings_text(broker, paper, trench):
+    lines = []
+    if broker:
+        lines.append("Broker: " + ", ".join(broker))
+    if paper:
+        lines.append("Practice account: " + ", ".join(paper))
+    if trench:
+        lines.append("Trench (you close these on trench.io): " + ", ".join(trench))
+    return "\n".join(lines)
+
+
+def stop_trading():
+    """Pause at once: no new ideas, no new buys, any waiting trade cancelled. Open trades keep their
+    stop-loss and target, so they stay protected. Selling them is a separate step."""
+    s = settings()
+    s["paused"] = True
+    s["paused_at"] = datetime.now(timezone.utc).isoformat()
+    save_settings(s)
+    waiting = pending()
+    PENDING.unlink(missing_ok=True)
+    broker, paper, trench = _holdings()
+    msg = "🛑 Trading stopped. No new trade ideas and no new buys until you say \"resume trading\"."
+    if waiting and waiting.get("side") != "sell":
+        msg += f"\nThe waiting {waiting.get('symbol', '')} trade idea was cancelled."
+    held = _holdings_text(broker, paper, trench)
+    if held:
+        msg += ("\n\nStill open (their stop-loss and target still protect them):\n" + held +
+                "\n\nTo sell them all now, say \"sell everything\".")
+    else:
+        msg += "\nNothing is open."
+    return msg
+
+
+def resume_trading():
+    s = settings()
+    s["paused"] = False
+    save_settings(s)
+    return "▶️ Trading is back on. Trade ideas will come again, and every trade still needs your Yes."
+
+
+def sell_all_request():
+    """Ask Yes/No before selling every open position."""
+    broker, paper, trench = _holdings()
+    broker = [b for b in broker if not b.startswith("(")]
+    if not broker and not paper:
+        extra = "\nOpen on Trench (close these on trench.io yourself): " + ", ".join(trench) if trench else ""
+        return "Nothing to sell: there are no open positions." + extra
+    plan = {"side": "sell_all", "broker": broker, "paper": paper, "symbol": "everything",
+            "created": datetime.now(timezone.utc).isoformat()}
+    DIR.mkdir(parents=True, exist_ok=True)
+    PENDING.write_text(json.dumps(plan), encoding="utf-8")
+    return ("⚠️ Sell EVERYTHING now at market price?\n" + _holdings_text(broker, paper, []) +
+            ("\n(Trench trades can't be closed by Echo: close them on trench.io.)" if trench else "") +
+            "\n\nReply Yes to sell it all, or No to keep them.")
+
+
+def sell_everything(plan):
+    import echo_broker
+    lines = []
+    if plan.get("broker"):
+        try:
+            echo_broker.close_all()
+            lines.append(f"✅ Broker ({echo_broker.mode()}): sold {', '.join(plan['broker'])} and cancelled their orders.")
+        except Exception as exc:
+            lines.append(f"❌ Broker: NOT sold ({str(exc)[:200]}). Check your Alpaca account.")
+    for sym in plan.get("paper", []):
+        try:
+            lines.append(paper_sell(sym))
+        except Exception as exc:
+            lines.append(f"❌ {sym} (practice): NOT sold ({str(exc)[:120]})")
+    return "\n".join(lines) or "Nothing was open."
+
+
 def pending():
     try:
         plan = json.loads(PENDING.read_text(encoding="utf-8"))
@@ -564,6 +678,10 @@ def approve():
     if not plan:
         return "That trade idea has expired or was already handled. Nothing was placed.", None
     PENDING.unlink(missing_ok=True)
+    if plan.get("side") == "sell_all":
+        return sell_everything(plan), None
+    if plan.get("side") != "sell" and is_paused():
+        return PAUSED_MSG + " Nothing was bought.", None
     if plan.get("side") == "sell":
         if echo_broker.is_configured():
             order = echo_broker.close_position(plan["symbol"])
@@ -654,6 +772,8 @@ def _telegram_text(text, keyboard=None):
 
 def send_idea_to_phone():
     """Scan, and send the best idea with a chart and Place/Skip buttons."""
+    if is_paused():
+        return "Trading is paused, so no trade idea was sent."
     msg, png = scan_and_propose()
     if png:
         p = pending() or {}
