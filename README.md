@@ -49,6 +49,11 @@ Say "search youtube for dog grooming tips", "google cheap dog beds", "open my sh
 
 ## Short videos with OpusClip
 
+**Find videos:** say "find videos about funny dog fails" (or "find long videos about …" for ones over 5 minutes) and Echo sends the top 5 from YouTube with links, free with no key. "clip 2" sends one to OpusClip; "open 2" plays it on the PC. For TikTok, Instagram or Facebook, tap Share → Copy link in the app, paste it to Echo, then say "clip it". Only clip videos you own or have permission to use.
+
+**Brand Studio:** `/brand` for your clothing brand: design ideas, free mock-up pictures, shop listings, a launch plan, and drafts in Shopify after your Yes. See `BRAND_SETUP.md`.
+
+
 Send `/clip` and a video link (or `/clip latest` for the newest video in `content_input`), and OpusClip cuts it into short clips. Echo messages you when they're ready. `/post 1 youtube instagram` (add `at 6pm` to schedule) posts a clip after you tap Yes. Setup: `OPUSCLIP_SETUP.md`.
 
 ## Selling websites (free)

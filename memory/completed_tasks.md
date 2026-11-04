@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-04 Video finder (echo_finder.py): 'find videos about X' scrapes YouTube search (ytInitialData, no key) → top 5 links; 'clip 2'/'clip it' → OpusClip Yes flow; pasted TikTok/IG/FB/YouTube links remembered; 'open 2' plays on PC. Brand Studio (echo_brand.py) also in this PR
 - 2026-11-04 Website sales machine: free OpenStreetMap leads (Overpass mirrors, skips chains, rotates 5 southern Adelaide areas) when no Google key; Google photos cut to 1/lead (free tier); echo_sales.py: 'sell <biz>' pitch + preview HTML site sent as Telegram document, price setting, /sales scoreboard, 9 AM follow-up nudge, Monday scoreboard; 'sell AAPL' still goes to trading
 - 2026-11-04 Catch-up: Telegram Echo answers messages sent while the PC was off (24 h, last 5; old Yes/No/button replies skipped). Autostart: echo_start writes Startup\Echo.bat with the real folder each launch and renames old Echo startup .bat files to .old
 - 2026-11-04 Free upgrade pack: brain-jam fix (activity pause + background thread + keep_alive), echo_log.py error log + morning report + /errors, echo_backup.py nightly backups (no keys) + /backup, echo_health.py weekly + /health, echo_ceo.py weekly plan + morning top 3 + /plan /done, Piper natural voice /getvoice, removed unused echo_approvals.py + Echo_upgrades.py

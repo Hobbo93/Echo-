@@ -41,6 +41,8 @@ import echo_computer
 import echo_guide
 import echo_tradeshot
 import echo_sales
+import echo_brand
+import echo_finder
 import echo_brain
 import echo_log
 import echo_backup
@@ -269,6 +271,40 @@ def handle_command(text):
                     echo_log.error("send preview", exc)
                     send(CHAT_ID, f"(Couldn't attach the preview: it's saved at {path})")
         threading.Thread(target=do_sales, daemon=True).start()
+        return True
+    if echo_brand.wants(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def do_brand():
+            result = _safe_text(echo_brand.handle, text) or ("Say /brand to see what Brand Studio can do.", None)
+            reply, path = result if isinstance(result, tuple) else (result, None)
+            if path:
+                try:
+                    send_photo(CHAT_ID, path, reply[:1000])
+                    return
+                except Exception as exc:
+                    echo_log.error("send mockup", exc)
+            if reply and "sent this to your phone" not in reply:
+                send(CHAT_ID, reply[:4000])
+        threading.Thread(target=do_brand, daemon=True).start()
+        return True
+    if echo_finder.wants(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def do_find():
+            reply = _safe_text(echo_finder.handle, text)
+            if isinstance(reply, tuple) and reply[0] == "open":
+                msg, shot = echo_computer.do({"action": "open", "url": reply[1], "label": "the video"})
+                if shot:
+                    try:
+                        send_photo(CHAT_ID, shot, msg)
+                        return
+                    except Exception as exc:
+                        echo_log.error("send screenshot", exc)
+                send(CHAT_ID, msg)
+            elif reply and "sent it to your phone" not in str(reply):
+                send(CHAT_ID, str(reply)[:4000])
+        threading.Thread(target=do_find, daemon=True).start()
         return True
     if echo_email.pending() and yes_no(text) and not echo_shopify.pending() and not echo_trading.pending():
         if yes_no(text) == "no":
@@ -647,6 +683,7 @@ def handle_command(text):
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
              "• /leads - today's 20 businesses (/findleads gets new ones) · sell <business> - pitch + free preview site\n"
              "• /sales - who said yes · my website price is $499\n"
+             "• /brand - Brand Studio for your clothing brand: design ideas · mockup 2 · listing 2 · launch plan\n"
              "• /trade analyse BHP.AX - chart read + risk plan\n"
              "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
              "• /connections - what every office is connected to, and what's missing\n"
@@ -662,6 +699,7 @@ def handle_command(text):
              "• send a chart screenshot with 'what do I do?' (or the ticker) - the Trading Analyst reads it\n"
              "• stop trading - pause all trading at once · sell everything · resume trading\n"
              "• remember that ... · /memories - what I remember · /forget 12\n"
+             "• find videos about <topic> - top 5 YouTube videos · clip 2 - send one to OpusClip · paste any link + 'clip it'\n"
              "• /clip LINK or /clip latest - OpusClip makes short clips · /clips · /post 1 youtube instagram [at 6pm]\n"
              "• search youtube for ... · google ... · open my shopify admin · /screen - see your PC screen\n"
              "• /guide connect my shopify store - I look at your screen and tell you where to click (next / stop)\n"

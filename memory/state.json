@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Owner says the PC has installed all updates (through PR #9)",
+  "checkpoint": "Brand Studio + video finder built; content engine (task 9) not started yet",
   "next_actions": [
-    "Owner: /health and send the result",
-    "Owner: /brain upgrade, /getvision, /getvoice, /guide connect my shopify store"
+    "Merge PR with Brand Studio + finder",
+    "Content engine: morning trends (Google Trends RSS AU works) + 3 video ideas; weekly YouTube views (channel RSS needs consent cookie - test again)"
   ],
   "updated": "2026-11-04"
 }
