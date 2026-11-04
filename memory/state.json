@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Free upgrade pack built, PR opening",
+  "checkpoint": "Owner says the PC has installed all updates (through PR #9)",
   "next_actions": [
-    "Merge the upgrade-pack PR once green",
-    "Owner: Yes to update, /brain, /getvision, /getvoice, set goals for /plan"
+    "Owner: /health and send the result",
+    "Owner: /brain upgrade, /getvision, /getvoice, /guide connect my shopify store"
   ],
   "updated": "2026-11-04"
 }
