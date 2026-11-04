@@ -236,3 +236,7 @@ content_output/
 content_queue.json
 .echo_telegram.json
 .echo_phone_url
+
+# Claude memory search index (rebuilt automatically)
+memory/.index.db
+.check.pyc

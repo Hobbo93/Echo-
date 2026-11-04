@@ -1,0 +1,10 @@
+{
+  "objective": "Merge the memory upgrade to main, then build the OpusClip connection once approved",
+  "checkpoint": "Claude workspace built: memory/, tools/mem.py, tools/check.py, CI, CLAUDE.md. .claude/ hook, agents and settings drafted but blocked pending owner approval",
+  "next_actions": [
+    "Get owner approval for the .claude/ session hook, agents and permission list",
+    "Owner approves PR to main",
+    "OpusClip connection once approved"
+  ],
+  "updated": "2026-11-04"
+}
