@@ -1,5 +1,4 @@
 """Tests for the website sales machine: free leads from OpenStreetMap, preview sites, selling."""
-import json
 import sys
 import tempfile
 import unittest

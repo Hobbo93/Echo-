@@ -41,6 +41,7 @@ import echo_computer
 import echo_guide
 import echo_tradeshot
 import echo_sales
+import echo_brand
 import echo_brain
 import echo_log
 import echo_backup
@@ -269,6 +270,22 @@ def handle_command(text):
                     echo_log.error("send preview", exc)
                     send(CHAT_ID, f"(Couldn't attach the preview: it's saved at {path})")
         threading.Thread(target=do_sales, daemon=True).start()
+        return True
+    if echo_brand.wants(text):
+        telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+
+        def do_brand():
+            result = _safe_text(echo_brand.handle, text) or ("Say /brand to see what Brand Studio can do.", None)
+            reply, path = result if isinstance(result, tuple) else (result, None)
+            if path:
+                try:
+                    send_photo(CHAT_ID, path, reply[:1000])
+                    return
+                except Exception as exc:
+                    echo_log.error("send mockup", exc)
+            if reply and "sent this to your phone" not in reply:
+                send(CHAT_ID, reply[:4000])
+        threading.Thread(target=do_brand, daemon=True).start()
         return True
     if echo_email.pending() and yes_no(text) and not echo_shopify.pending() and not echo_trading.pending():
         if yes_no(text) == "no":
@@ -647,6 +664,7 @@ def handle_command(text):
              "• /roblox a snowy obby - build a Roblox map (/maps lists them)\n"
              "• /leads - today's 20 businesses (/findleads gets new ones) · sell <business> - pitch + free preview site\n"
              "• /sales - who said yes · my website price is $499\n"
+             "• /brand - Brand Studio for your clothing brand: design ideas · mockup 2 · listing 2 · launch plan\n"
              "• /trade analyse BHP.AX - chart read + risk plan\n"
              "• /market - UP / DOWN / WAIT for each stock, with a chart\n"
              "• /connections - what every office is connected to, and what's missing\n"
