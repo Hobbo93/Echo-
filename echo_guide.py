@@ -106,7 +106,7 @@ def step(shoot=None, look=None):
     look = look or (lambda image, question: echo_photos.look([image], question))
     if len(_state["steps"]) >= MAX_STEPS:
         return stop() + " (That was a lot of steps. Send /guide again to start fresh.)", None
-    if not echo_photos.has_vision():
+    if not echo_photos.can_see():
         _state.clear()
         return ("To guide you I need to see your screen, which needs the free photo brain on your PC "
                 f"({echo_photos.vision_model()}, {echo_photos.VISION_SIZE}). Send /getvision to download it, "

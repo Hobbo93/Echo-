@@ -229,6 +229,10 @@ def log_turn(channel, user_text, reply, summarise=False):
 
 
 def _ask_model(prompt):
+    import echo_ai
+    claude = echo_ai.try_claude([{"role": "user", "content": prompt}], "background", max_tokens=1500)
+    if claude is not None:
+        return claude
     payload = {"model": echo_brain.model(), "stream": False, "options": {"num_predict": 220},
                "messages": [{"role": "user", "content": prompt}]}
     req = urllib.request.Request(OLLAMA_URL, json.dumps(payload).encode(),

@@ -112,6 +112,17 @@ def _quiet(fn):
         pass
 
 
+def can_see():
+    """Echo can look at photos: the local photo brain is downloaded, or Claude is switched on."""
+    if has_vision():
+        return True
+    try:
+        import echo_ai
+        return echo_ai.enabled()
+    except Exception:
+        return False
+
+
 def need_vision_message(how="Send /getvision"):
     return ("To see photos I need a vision model (" + vision_model() + ", " + VISION_SIZE +
             ", free, runs on your PC). " + how + " to download it, then send the photo again.")
@@ -119,9 +130,14 @@ def need_vision_message(how="Send /getvision"):
 
 def look(images, question="", history=None):
     """Ask the vision model about one or more images (raw bytes)."""
-    if not has_vision():
+    if not can_see():
         raise RuntimeError(need_vision_message())
     question = question.strip() or "What's in this photo?"
+    import echo_ai
+    claude = echo_ai.try_claude([{"role": "system", "content": SYSTEM_PROMPT}, *(history or []),
+                                 {"role": "user", "content": question}], "main", images=images)
+    if claude is not None:  # Claude reads photos and screenshots much better than the small local model
+        return claude
     messages = [{"role": "system", "content": SYSTEM_PROMPT}, *(history or []),
                 {"role": "user", "content": question,
                  "images": [base64.b64encode(b).decode() for b in images]}]

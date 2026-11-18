@@ -21,6 +21,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 import echo_brain
+import echo_ai
 import echo_log
 
 DIR = Path.home() / "Echo_business"
@@ -75,6 +76,10 @@ def records_today():
 
 
 def ask_ai(prompt, system="You are a helpful business assistant. Be concise and practical.", timeout=120):
+    claude = echo_ai.try_claude([{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                                "main", max_tokens=2500)
+    if claude is not None:
+        return claude
     body = json.dumps({"model": echo_brain.model(), "stream": False, "messages": [
         {"role": "system", "content": system}, {"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(OLLAMA, body, {"Content-Type": "application/json"})

@@ -97,6 +97,15 @@ Send `/clip` and a video link (or `/clip latest` for the newest video in `conten
 
 Send `/brain` on Telegram. Echo checks your PC's memory and graphics card and recommends the best free AI model it can run. `/brain upgrade` downloads it (it can take a while), tests it and switches every part of Echo over. `/brain small` goes back to the small, fast model. Phone calls keep a fast model unless your PC has a good graphics card.
 
+## Optional: think with Claude (paid, capped)
+
+Echo's free local brain is small. For much smarter answers, Echo can think with **Claude** (Anthropic's AI):
+1. `/connect 5`: add your Anthropic API key (console.anthropic.com; add credit and set a spend limit there too).
+2. `/brain claude`: Opus 5.5 does chat and the offices; Haiku 5.5 (much cheaper and faster) does background jobs and phone calls. `/brain claude sonnet` uses Sonnet 5.5 as the main brain for about half the price.
+3. `/brain budget 20` sets a monthly limit in US dollars (default $20). At the limit, Echo goes back to the free local brain until the 1st and tells you. `/brain` shows this month's spend. `/brain local` switches Claude off.
+
+If Claude is off, out of budget or unreachable, Echo carries on with the local brain automatically. Every outside action still needs your Yes.
+
 ## Echo learns and tells the truth
 
 - **Honest answers:** Echo is told to say "I don't know" instead of guessing, to point out problems, and never to claim it did something it didn't. It knows exactly which services are really connected. If a reply still claims something happened (like "I've posted it") or quotes "live" prices, Echo adds a ⚠️ honesty note.
