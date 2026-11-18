@@ -15,3 +15,4 @@ Format: date — decision — why.
 - 2026-11-04 — Backups never include .echo_telegram.json (keys) so secrets don't reach cloud folders; owner re-enters keys via connect_echo.bat after a restore
 - 2026-11-04 — Keys may be pasted to Echo's own Telegram bot via /connect (message deleted at once, saved only on the PC) because the owner can't use connect_echo.bat from the phone; connect_echo.bat stays the most private option
 - 2026-11-18 — Owner explicitly asked for Claude as Echo's brain (2026-11-18), overriding 'everything free' for this one feature: kept opt-in (/brain claude), with a monthly US$ cap and automatic fallback to the free local brain
+- 2026-11-18 Claude main brain defaults to Sonnet 5.5 (not Opus) - owner chose it so the US$20/month lasts the whole month; /brain claude opus switches up.

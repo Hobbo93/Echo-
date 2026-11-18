@@ -192,7 +192,7 @@ def answer(text):
         st = echo_ai.settings()
         st["provider"] = "claude"
         echo_ai.save_settings(st)
-        detail = (f"Echo now thinks with Claude (main brain + Haiku 5.5 second brain). Limit for both together: "
+        detail = (f"Echo now thinks with Claude (Sonnet 5.5 main brain + Haiku 5.5 second brain; /brain claude opus for the top brain). Limit for both together: "
                   f"${float(st['budget']):.2f} a month, then it falls back to the free local brain until the 1st. "
                   "/brain shows what's spent.")
     if ok:

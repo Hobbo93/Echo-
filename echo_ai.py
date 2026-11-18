@@ -7,8 +7,9 @@
     /brain              which brain is on, and what Claude has cost this month
 
 Two Claude brains:
-  - main brain (chat, the offices, ideas, plans):    Claude Opus 5.5 (or Sonnet 5.5, about half the price:
-                                                     /brain claude sonnet; /brain claude opus to go back)
+  - main brain (chat, the offices, ideas, plans):    Claude Sonnet 5.5 by default, so $20 lasts the month
+                                                     (/brain claude opus for the top brain at about twice
+                                                     the price; /brain claude sonnet to go back)
   - second brain (background jobs and phone calls):  Claude Haiku 5.5 (fast and about 40x cheaper)
 
 Every call site asks try_claude() first. It returns None when Claude is off, has no key, is over budget,
@@ -29,7 +30,7 @@ CONFIG = Path.home() / ".echo_telegram.json"
 SETTINGS = Path.home() / ".echo_ai.json"
 USAGE = Path.home() / ".echo_ai_usage.json"
 
-MODELS = {"main": "claude-opus-5-5", "background": "claude-haiku-5-5", "fast": "claude-haiku-5-5"}
+MODELS = {"main": "claude-sonnet-5-5", "background": "claude-haiku-5-5", "fast": "claude-haiku-5-5"}
 # US$ per million tokens: input, output, cache read, cache write (Anthropic's prices as of Oct 2026)
 PRICES = {"claude-opus-5-5": (4.00, 20.00, 0.20, 5.00), "claude-sonnet-5-5": (2.00, 10.00, 0.20, 2.50),
           "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125)}
@@ -200,7 +201,7 @@ def test():
 def describe():
     s = settings()
     on = s["provider"] == "claude"
-    main = {"claude-sonnet-5-5": "Sonnet 5.5"}.get(s.get("main_model", ""), "Opus 5.5")
+    main = {"claude-opus-5-5": "Opus 5.5"}.get(s.get("main_model", MODELS["main"]), "Sonnet 5.5")
     lines = [f"🧠 Echo is thinking with: {f'Claude ({main} + Haiku 5.5)' if on else 'the free local brain'}",
              f"Claude this month: ${spent():.2f} of your ${float(s['budget']):.2f} limit"]
     if on and not api_key():
@@ -224,7 +225,7 @@ def handle(text):
         if m.group(2):
             s["main_model"] = "claude-sonnet-5-5" if m.group(2) == "sonnet" else "claude-opus-5-5"
         save_settings(s)
-        main = "Sonnet 5.5" if s.get("main_model") == "claude-sonnet-5-5" else "Opus 5.5"
+        main = "Opus 5.5" if s.get("main_model", MODELS["main"]) == "claude-opus-5-5" else "Sonnet 5.5"
         return (f"🧠 Echo now thinks with Claude: {main} for chat and the offices, Haiku 5.5 for background jobs "
                 f"and phone calls. Limit ${float(s['budget']):.2f}/month (/brain budget to change). /brain local to go back.")
     if re.match(r"^/brain\s+(local|free|ollama|off)\b", t):
