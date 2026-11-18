@@ -26,6 +26,7 @@ import echo_health
 import echo_ceo
 import echo_sales
 import echo_office_jobs
+import echo_twitch
 import threading
 
 TIMEZONE = ZoneInfo("Australia/Adelaide")
@@ -426,6 +427,24 @@ def run_office_jobs(schedule):
             _last_inbox_check[0] = time.time()
 
 
+def run_twitch(schedule):
+    """Twitch (once connected): live alerts and after-stream clips every 2 minutes, stats on Monday morning."""
+    if not echo_twitch.is_configured():
+        return
+    try:
+        echo_twitch.tick(send_message)
+    except Exception as exc:
+        echo_log.error("twitch", exc)
+    due, week = echo_twitch.weekly_due(schedule, current_time())
+    if due:
+        schedule["last_twitch_report"] = week
+        save_schedule(schedule)
+        try:
+            send_message(echo_twitch.stats())
+        except Exception as exc:
+            echo_log.error("twitch weekly", exc)
+
+
 def run_lead_research(schedule):
     """At 3 PM, run real lead research if a Google Places key is set."""
     date = today()
@@ -519,6 +538,7 @@ def run_daily_schedule():
     run_ceo_plan(schedule)
     run_sales(schedule)
     run_office_jobs(schedule)
+    run_twitch(schedule)
 
     now = current_time().strftime("%H:%M")
 

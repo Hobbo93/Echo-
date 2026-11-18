@@ -110,6 +110,13 @@ def main():
     else:
         print("Skipped Telegram chat: add a second bot token in setup_echo.bat to enable it.")
 
+    try:
+        import echo_twitch
+        if echo_twitch.is_configured():
+            launch("Echo Twitch Chat", "echo_twitch_bot.py")  # only talks after /twitch bot on
+    except Exception as exc:
+        print("Skipped Twitch chat bot:", exc)
+
     if echo_phone.is_configured():
         launch("Echo Phone", "echo_phone.py")
     else:

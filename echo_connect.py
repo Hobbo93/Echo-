@@ -63,6 +63,19 @@ SERVICES = [
                "API keys: tap Create key, name it Echo, and copy it (it starts with sk-ant-)."],
      "fields": [("anthropic_api_key", "Paste your Anthropic API key", r"^sk-ant-\S{20,}$",
                  "Anthropic keys start with sk-ant-.")]},
+    {"key": "twitch", "name": "Twitch",
+     "office": "Content Creator",
+     "unlocks": ("tells you when you go live, turns each stream's clips into video ideas, sends a weekly stats "
+                 "report, and can answer viewers in your chat (/twitch bot on)"),
+     "steps": ["Open dev.twitch.tv/console on your phone and log in with your Twitch account.",
+               "Tap 'Register Your Application'. Name: Echo-yourname. OAuth Redirect URL: http://localhost . "
+               "Category: Chat Bot. Client Type: Confidential. Tap Create.",
+               "Tap Manage on the new app: copy the Client ID, then tap 'New Secret' and copy the Client Secret."],
+     "fields": [("twitch_client_id", "Paste the Client ID", r"^[a-z0-9]{20,40}$", "That doesn't look like a Twitch Client ID."),
+                ("twitch_client_secret", "Paste the Client Secret", r"^[a-z0-9]{20,40}$",
+                 "That doesn't look like a Twitch Client Secret."),
+                ("twitch_channel", "Your Twitch channel name (as in twitch.tv/yourname)", r"^@?[A-Za-z0-9_]{3,25}$",
+                 "Send just your channel name, e.g. coolstreamer.")]},
 ]
 
 
@@ -123,6 +136,9 @@ def _test(svc):
         if svc["key"] == "claude":
             import echo_ai
             return True, echo_ai.test()
+        if svc["key"] == "twitch":
+            import echo_twitch
+            return True, echo_twitch.test() + " Send /twitch for your stats, /twitch bot on for the chat bot."
         if svc["key"] == "alpaca":
             import echo_broker
             a = echo_broker.account()

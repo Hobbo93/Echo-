@@ -48,6 +48,7 @@ import echo_office_jobs
 import echo_brain
 import echo_ai
 import echo_files
+import echo_twitch
 import echo_log
 import echo_backup
 import echo_health
@@ -807,6 +808,7 @@ def handle_command(text):
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• Send me any video, file or PDF and I'll save it on the PC · /files lists them · /get 3 sends one back\n"
              "• Drop a file in Echo_send_to_phone on the PC and I'll send it here\n"
+             "• /twitch - stream stats · /twitch clips · /twitch bot on|off (Echo in your Twitch chat)\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"             "• /brain claude - think with Claude (paid, capped: /brain budget 20) · /brain local - back to free\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
@@ -838,6 +840,10 @@ def handle_message(msg):
         found = echo_files.incoming(msg)
         if found:
             handle_file(msg, found)
+            return
+        if text.lower().startswith("/twitch"):
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+            send(CHAT_ID, echo_twitch.handle(text, lambda m: send(CHAT_ID, m)))
             return
         if text.lower().startswith("/files"):
             send(CHAT_ID, echo_files.list_text())
