@@ -101,7 +101,7 @@ Send `/brain` on Telegram. Echo checks your PC's memory and graphics card and re
 
 Echo's free local brain is small. For much smarter answers, Echo can think with **Claude** (Anthropic's AI):
 1. `/connect 5`: add your Anthropic API key (console.anthropic.com; add credit and set a spend limit there too).
-2. `/brain claude`: Opus 5.5 does chat and the offices; Haiku 5.5 (much cheaper and faster) does background jobs and phone calls. `/brain claude sonnet` uses Sonnet 5.5 as the main brain for about half the price.
+2. `/brain claude`: Sonnet 5.5 does chat and the offices (so the $20 lasts the month); Haiku 5.5 (much cheaper and faster) does background jobs and phone calls. `/brain claude opus` uses Opus 5.5, the top brain, for about twice the price.
 3. `/brain budget 20` sets a monthly limit in US dollars (default $20). At the limit, Echo goes back to the free local brain until the 1st and tells you. `/brain` shows this month's spend. `/brain local` switches Claude off.
 
 If Claude is off, out of budget or unreachable, Echo carries on with the local brain automatically. Every outside action still needs your Yes.

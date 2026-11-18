@@ -47,8 +47,15 @@ class ClaudeBrainTest(unittest.TestCase):
         self.assertIsNone(ai.try_claude(self.msgs(), client=api))
         self.assertEqual(api.calls, [])  # nothing sent, nothing charged
 
-    def test_main_brain_is_opus_with_fallbacks_and_caching(self):
+    def test_main_brain_defaults_to_sonnet(self):
         ai.handle("/brain claude")
+        api = FakeAPI()
+        ai.try_claude(self.msgs(), "main", client=api)
+        self.assertEqual(api.calls[0][:1] + (api.calls[0][1]["model"],), ("plain", "claude-sonnet-5-5"))
+        self.assertIn("Sonnet 5.5", ai.describe())
+
+    def test_main_brain_opus_with_fallbacks_and_caching(self):
+        ai.handle("/brain claude opus")
         api = FakeAPI()
         self.assertEqual(ai.try_claude(self.msgs(), "main", client=api), "Hi from Claude")
         kind, kw = api.calls[0]
