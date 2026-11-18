@@ -6,3 +6,4 @@
 - Australian context: AUD, Australia/Adelaide time zone.
 - Likes Echo to feel alive (personality, office visuals, phone calls) as well as practical.
 - 2026-11-04 Everything must be FREE: no paid services, subscriptions or per-use AI costs (2026-11-04). Show the office (screenshot) before coding office changes.
+- 2026-11-18 Happy to pay US$20/month total for Claude as Echo's brain (Opus main + Haiku second), cap covers both (2026-11-18)

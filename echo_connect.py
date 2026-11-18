@@ -57,7 +57,7 @@ SERVICES = [
                 ("alpaca_secret_key", "Paste the Secret key", r"^\S{20,}$", "That doesn't look like an Alpaca secret.")]},
     {"key": "claude", "name": "Claude (Anthropic) - paid, optional",
      "office": "Echo's brain",
-     "unlocks": "thinks with Claude instead of the free local model, within your monthly limit (/brain budget)",
+     "unlocks": "thinks with Claude instead of the free local model, switched on automatically, US$20/month limit for both brains",
      "steps": ["Open console.anthropic.com and sign in (or sign up).",
                "Billing: add a few dollars of credit, and set a monthly spend limit there too.",
                "API keys: tap Create key, name it Echo, and copy it (it starts with sk-ant-)."],
@@ -187,6 +187,14 @@ def answer(text):
         return "✅ Saved (your message was deleted). " + _ask(svc, s["field"]), True
     _set_state({})
     ok, detail = _test(svc)
+    if ok and svc["key"] == "claude":  # switch both Claude brains on straight away, within the monthly limit
+        import echo_ai
+        st = echo_ai.settings()
+        st["provider"] = "claude"
+        echo_ai.save_settings(st)
+        detail = (f"Echo now thinks with Claude (main brain + Haiku 5.5 second brain). Limit for both together: "
+                  f"${float(st['budget']):.2f} a month, then it falls back to the free local brain until the 1st. "
+                  "/brain shows what's spent.")
     if ok:
         return (f"🟢 {svc['name']} is connected and working. {detail}\nThe {svc['office']} now {svc['unlocks']}. "
                 "/connect for the next one."), True
