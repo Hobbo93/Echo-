@@ -49,6 +49,7 @@ import echo_brain
 import echo_ai
 import echo_files
 import echo_twitch
+import echo_live
 import echo_log
 import echo_backup
 import echo_health
@@ -808,7 +809,8 @@ def handle_command(text):
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
              "• Send me any video, file or PDF and I'll save it on the PC · /files lists them · /get 3 sends one back\n"
              "• Drop a file in Echo_send_to_phone on the PC and I'll send it here\n"
-             "• /twitch - stream stats · /twitch clips · /twitch bot on|off (Echo in your Twitch chat)\n"
+             "• /twitch - stream stats · /twitch clips · /twitch bot on|off (Echo in your Twitch chat) · /twitch login\n"
+             "• /live - stream dashboard · /golive [title] · /endlive · /scene NAME · /title · /game · 'clip that'\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"             "• /brain claude - think with Claude (paid, capped: /brain budget 20) · /brain local - back to free\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
@@ -840,6 +842,11 @@ def handle_message(msg):
         found = echo_files.incoming(msg)
         if found:
             handle_file(msg, found)
+            return
+        live_reply = echo_live.handle(text) if text else None
+        if live_reply:
+            telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
+            send(CHAT_ID, live_reply)
             return
         if text.lower().startswith("/twitch"):
             telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
@@ -976,6 +983,9 @@ def main():
                 msg = update.get("message") or {}
                 chat = msg.get("chat") or {}
                 if str(chat.get("id")) != CHAT_ID or chat.get("type") != "private":
+                    if msg:  # helps find a wrong chat_id: messages from other chats are ignored
+                        echo_log.error("telegram chat", note=f"ignored a message from another chat "
+                                       f"(type {chat.get('type')}, id ending {str(chat.get('id'))[-3:]})")
                     continue
                 handle_message(msg)
         except KeyboardInterrupt:
@@ -983,6 +993,7 @@ def main():
         except Exception as exc:
             if "timed out" not in str(exc).lower() and "10054" not in str(exc):
                 print("Echo Telegram chat error:", exc, flush=True)  # brief internet drops are normal
+                echo_log.error("telegram chat", exc)  # e.g. 409 Conflict = another program reads this bot
             time.sleep(5)
 
 

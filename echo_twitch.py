@@ -31,6 +31,7 @@ HELIX = "https://api.twitch.tv/helix"
 ID = "https://id.twitch.tv/oauth2"
 CHECK_EVERY = 120          # seconds between live checks
 CHAT_SCOPES = "chat:read chat:edit"
+OWNER_SCOPES = "channel:manage:broadcast clips:edit"
 STATE = "twitch"           # echo_business.load/save name (no secrets in here)
 
 _app_token = {"token": "", "until": 0.0}
@@ -289,10 +290,18 @@ def set_bot(on):
     save_state(s)
 
 
-def chat_token():
-    """(access token, login) for the account that talks in chat, refreshing it if needed; ('', '') if none."""
+ACCOUNTS = {
+    # kind: (settings prefix, scopes, what it's for)
+    "chat": ("twitch_chat", CHAT_SCOPES, "talk in your Twitch chat"),
+    "owner": ("twitch_owner", OWNER_SCOPES, "change your stream title and game and make clips"),
+}
+
+
+def user_token(kind="chat"):
+    """(access token, login) for a signed-in Twitch account, refreshing it if needed; ('', '') if none."""
+    prefix = ACCOUNTS[kind][0]
     c = _cfg()
-    token = str(c.get("twitch_chat_token", "")).strip()
+    token = str(c.get(prefix + "_token", "")).strip()
     if not token:
         return "", ""
     try:
@@ -300,51 +309,114 @@ def chat_token():
         return token, info.get("login", "")
     except TwitchError:
         pass
-    refresh = str(c.get("twitch_chat_refresh", "")).strip()
+    refresh = str(c.get(prefix + "_refresh", "")).strip()
     if not refresh:
         return "", ""
     got = _request(ID + "/token", {"grant_type": "refresh_token", "refresh_token": refresh,
                                    "client_id": c.get("twitch_client_id", ""),
                                    "client_secret": c.get("twitch_client_secret", "")})
-    echo_connect._save_setting("twitch_chat_token", got["access_token"])
+    echo_connect._save_setting(prefix + "_token", got["access_token"])
     if got.get("refresh_token"):
-        echo_connect._save_setting("twitch_chat_refresh", got["refresh_token"])
+        echo_connect._save_setting(prefix + "_refresh", got["refresh_token"])
     info = _request(ID + "/validate", headers={"Authorization": "OAuth " + got["access_token"]})
     return got["access_token"], info.get("login", "")
 
 
-def start_login(notify):
-    """Start Twitch's device sign-in for the chat bot. Returns the message with the code to enter."""
+def chat_token():
+    return user_token("chat")
+
+
+def start_login(notify, kind="chat"):
+    """Start Twitch's device sign-in. Returns the message with the code to enter; notify() reports the result."""
+    prefix, scopes, purpose = ACCOUNTS[kind]
     c = _cfg()
-    got = _request(ID + "/device", {"client_id": c.get("twitch_client_id", ""), "scopes": CHAT_SCOPES})
+    got = _request(ID + "/device", {"client_id": c.get("twitch_client_id", ""), "scopes": scopes})
+    again = "/twitch bot on" if kind == "chat" else "/twitch login"
 
     def wait():
         deadline = time.time() + int(got.get("expires_in", 1800))
         while time.time() < deadline:
             time.sleep(max(5, int(got.get("interval", 5))))
             try:
-                tok = _request(ID + "/token", {"client_id": c.get("twitch_client_id", ""), "scopes": CHAT_SCOPES,
+                tok = _request(ID + "/token", {"client_id": c.get("twitch_client_id", ""), "scopes": scopes,
                                                "device_code": got["device_code"],
                                                "grant_type": "urn:ietf:params:oauth:grant-type:device_code"})
             except TwitchError as exc:
                 if "pending" in str(getattr(exc, "detail", {}).get("message", exc)).lower():
                     continue
-                notify("🔴 Twitch sign-in for the chat bot didn't work: " + str(exc)[:200] + ". Send /twitch bot on to try again.")
+                notify(f"🔴 Twitch sign-in didn't work: {str(exc)[:200]}. Send {again} to try again.")
                 return
-            echo_connect._save_setting("twitch_chat_token", tok["access_token"])
-            echo_connect._save_setting("twitch_chat_refresh", tok.get("refresh_token", ""))
-            set_bot(True)
-            notify("🟢 Twitch chat bot signed in and switched on. Viewers can type !echo and a question. "
-                   "/twitch bot off to stop it.")
+            echo_connect._save_setting(prefix + "_token", tok["access_token"])
+            echo_connect._save_setting(prefix + "_refresh", tok.get("refresh_token", ""))
+            if kind == "chat":
+                set_bot(True)
+                notify("🟢 Twitch chat bot signed in and switched on. Viewers can type !echo and a question. "
+                       "/twitch bot off to stop it.")
+            else:
+                notify("🟢 Signed in to Twitch as you. Now /title, /game and 'clip that' work. /live for the dashboard.")
             return
-        notify("The Twitch sign-in code expired. Send /twitch bot on to get a new one.")
+        notify(f"The Twitch sign-in code expired. Send {again} to get a new one.")
 
     t = threading.Thread(target=wait, daemon=True)
     _login_thread["t"] = t
     t.start()
-    return (f"🤖 To let Echo talk in your Twitch chat:\n1. Open {got.get('verification_uri', 'https://www.twitch.tv/activate')}\n"
-            f"2. Sign in as the account that should talk in chat (your own, or a separate bot account)\n"
-            f"3. Enter the code {got['user_code']} and tap Authorize.\nI'll tell you here when it's on.")
+    who = ("the account that should talk in chat (your own, or a separate bot account)" if kind == "chat"
+           else f"your streaming account ({channel()})")
+    lines = [f"🔑 To let Echo {purpose}:",
+             f"1. Open {got.get('verification_uri', 'https://www.twitch.tv/activate')}",
+             f"2. Sign in as {who}",
+             f"3. Enter the code {got['user_code']} and tap Authorize.",
+             "I'll tell you here when it's done."]
+    return "\n".join(lines)
+
+
+# ==========================================
+# AS YOU: TITLE, GAME, CLIPS (needs /twitch login)
+# ==========================================
+
+def _helix_as_owner(method, path, query=None, body=None):
+    token, _login = user_token("owner")
+    if not token:
+        raise TwitchError("Echo isn't signed in to Twitch as you yet. Send /twitch login (takes 1 minute).")
+    url = HELIX + path + ("?" + urllib.parse.urlencode(query) if query else "")
+    req = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None,
+                                 {"Client-Id": _cfg().get("twitch_client_id", ""), "Authorization": "Bearer " + token,
+                                  "Content-Type": "application/json"}, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+    except urllib.error.HTTPError as exc:
+        try:
+            msg = json.loads(exc.read().decode("utf-8", "replace")).get("message", "")
+        except ValueError:
+            msg = ""
+        raise TwitchError(msg or f"Twitch error {exc.code}") from None
+
+
+def set_title(title):
+    _helix_as_owner("PATCH", "/channels", {"broadcaster_id": user()["id"]}, {"title": title[:140]})
+    return f"✅ Twitch title: {title[:140]}"
+
+
+def set_game(name):
+    found = helix("/games", name=name).get("data") or []
+    if not found:
+        found = helix("/search/categories", query=name, first=1).get("data") or []
+    if not found:
+        return f"I couldn't find a Twitch category called '{name}'."
+    game = found[0]
+    _helix_as_owner("PATCH", "/channels", {"broadcaster_id": user()["id"]}, {"game_id": game["id"]})
+    return f"✅ Twitch category: {game['name']}"
+
+
+def make_clip():
+    """Clip the last ~30 seconds of your live stream on Twitch. Returns the clip's link."""
+    got = _helix_as_owner("POST", "/clips", {"broadcaster_id": user()["id"]})
+    data = (got.get("data") or [{}])[0]
+    if not data.get("id"):
+        raise TwitchError("Twitch didn't make the clip (are you live?).")
+    return "https://clips.twitch.tv/" + data["id"]
 
 
 # ==========================================
@@ -362,6 +434,8 @@ def handle(text, notify):
         if low.startswith("/twitch bot off"):
             set_bot(False)
             return "⏸️ The Twitch chat bot is off. /twitch bot on to switch it back on."
+        if low.startswith("/twitch login"):
+            return start_login(notify, "owner")
         if low.startswith("/twitch bot"):
             token, login = chat_token()
             if token:
