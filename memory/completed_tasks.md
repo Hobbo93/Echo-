@@ -1,6 +1,7 @@
 # Completed tasks
 Newest first. One line each: date, what, where.
 
+- 2026-11-18 Optional Claude brain (echo_ai.py): try_claude() at every AI call site (telegram, office, phone=Haiku fast, business, growth/memory/roblox=Haiku background, photos with images); Opus 5.5 main (or Sonnet via /brain claude sonnet) + Haiku 5.5 second brain; effort low; system prompt cached; Opus server-side fallbacks; monthly USD budget (default 20) with usage tracking and auto-fallback to Ollama; /connect 5 for the key; anthropic SDK in requirements
 - 2026-11-04 Office daily jobs (echo_office_jobs.py): 7:30 content ideas (Google Trends AU RSS + local AI + long YouTube videos via echo_finder), 8:45 Shopify store report, Gmail inbox → tickets every 15 min (IMAP read-only, skips newsletters/automated), 'send reply N' via email Yes flow; /ideas /store /inbox; 'my channels are about X'
 - 2026-11-04 /connect (echo_connect.py): Telegram wizard per account (OpusClip, Shopify, Gmail, Alpaca) with steps, saves keys to .echo_telegram.json, deletes the pasted message, live test; secret-looking messages never reach the AI; not-connected messages point to /connect N
 - 2026-11-04 Video finder (echo_finder.py): 'find videos about X' scrapes YouTube search (ytInitialData, no key) → top 5 links; 'clip 2'/'clip it' → OpusClip Yes flow; pasted TikTok/IG/FB/YouTube links remembered; 'open 2' plays on PC. Brand Studio (echo_brand.py) also in this PR

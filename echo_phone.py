@@ -28,6 +28,7 @@ import urllib.request
 from html import escape
 from pathlib import Path
 import echo_brain
+import echo_ai
 import echo_log
 
 CONFIG = Path.home() / ".echo_telegram.json"
@@ -278,13 +279,15 @@ def ask_echo(history, message):
     messages = [{"role": "system", "content": _persona(message)}, *history,
                 {"role": "user", "content": message}]
     echo_brain.mark_active()
-    payload = {"model": echo_brain.fast_model(), "messages": messages, "stream": False,
-               "keep_alive": echo_brain.KEEP_ALIVE,
-               "options": {"num_predict": 120}}  # short answers keep calls snappy
-    req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
-                                 {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=12) as r:  # Twilio waits 15s at most
-        reply = json.load(r).get("message", {}).get("content", "").strip()
+    reply = echo_ai.try_claude(messages, "fast", max_tokens=400)  # Claude Haiku if switched on (quick)
+    if reply is None:
+        payload = {"model": echo_brain.fast_model(), "messages": messages, "stream": False,
+                   "keep_alive": echo_brain.KEEP_ALIVE,
+                   "options": {"num_predict": 120}}  # short answers keep calls snappy
+        req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
+                                     {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=12) as r:  # Twilio waits 15s at most
+            reply = json.load(r).get("message", {}).get("content", "").strip()
     try:
         import echo_growth
         if echo_growth.check_reply(reply) != reply:  # it claimed something that didn't happen

@@ -24,6 +24,7 @@ import echo_growth
 import echo_router
 import echo_tradeshot
 import echo_brain
+import echo_ai
 import echo_log
 import time as _time
 import threading
@@ -101,6 +102,11 @@ def ask_ollama(message, employee, history=()):
         memories = ""
     if memories:
         system_prompt += "\n\n" + memories
+
+    claude = echo_ai.try_claude([{"role": "system", "content": system_prompt}, *history,
+                                 {"role": "user", "content": message}], "main")
+    if claude is not None:  # Claude is switched on and answered
+        return claude
 
     payload = {
         "model": echo_brain.resolve(employee.get("model")),
@@ -399,7 +405,7 @@ def chat():
             })
 
         if images:
-            if not echo_photos.has_vision():
+            if not echo_photos.can_see():
                 return jsonify({
                     "error": echo_photos.need_vision_message("Click \"Download photo brain\""),
                     "need_vision": True

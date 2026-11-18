@@ -14,3 +14,4 @@ Format: date — decision — why.
 - 2026-11-04 — Owner chose FREE PC control only (open pages + screenshots). Paid Claude computer-use takeover (~US$0.05–3/task, separate API billing) declined for now; local vision models judged too unreliable for multi-step tasks
 - 2026-11-04 — Backups never include .echo_telegram.json (keys) so secrets don't reach cloud folders; owner re-enters keys via connect_echo.bat after a restore
 - 2026-11-04 — Keys may be pasted to Echo's own Telegram bot via /connect (message deleted at once, saved only on the PC) because the owner can't use connect_echo.bat from the phone; connect_echo.bat stays the most private option
+- 2026-11-18 — Owner explicitly asked for Claude as Echo's brain (2026-11-18), overriding 'everything free' for this one feature: kept opt-in (/brain claude), with a monthly US$ cap and automatic fallback to the free local brain

@@ -28,6 +28,7 @@ from pathlib import Path
 
 import echo_memory
 import echo_brain
+import echo_ai
 import echo_log
 
 STATE_FILE = Path.home() / ".echo_growth.json"
@@ -112,6 +113,9 @@ def _save(s):
 def _ask(prompt, max_tokens=300, ask=None):
     if ask:
         return ask(prompt)
+    claude = echo_ai.try_claude([{"role": "user", "content": prompt}], "background", max_tokens=max_tokens + 1500)
+    if claude is not None:
+        return claude
     payload = {"model": echo_brain.model(), "stream": False, "options": {"num_predict": max_tokens, "temperature": .2},
                "messages": [{"role": "user", "content": prompt}]}
     req = urllib.request.Request(OLLAMA_URL, json.dumps(payload).encode(), {"Content-Type": "application/json"})

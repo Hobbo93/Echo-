@@ -55,6 +55,14 @@ SERVICES = [
                "On the dashboard, find 'API Keys' and tap Generate. Copy the Key ID and Secret."],
      "fields": [("alpaca_key_id", "Paste the Key ID", r"^[A-Z0-9]{16,}$", "That doesn't look like an Alpaca Key ID."),
                 ("alpaca_secret_key", "Paste the Secret key", r"^\S{20,}$", "That doesn't look like an Alpaca secret.")]},
+    {"key": "claude", "name": "Claude (Anthropic) - paid, optional",
+     "office": "Echo's brain",
+     "unlocks": "thinks with Claude instead of the free local model, within your monthly limit (/brain budget)",
+     "steps": ["Open console.anthropic.com and sign in (or sign up).",
+               "Billing: add a few dollars of credit, and set a monthly spend limit there too.",
+               "API keys: tap Create key, name it Echo, and copy it (it starts with sk-ant-)."],
+     "fields": [("anthropic_api_key", "Paste your Anthropic API key", r"^sk-ant-\S{20,}$",
+                 "Anthropic keys start with sk-ant-.")]},
 ]
 
 
@@ -112,6 +120,9 @@ def _test(svc):
         if svc["key"] == "gmail":
             import echo_email
             return True, echo_email.test()
+        if svc["key"] == "claude":
+            import echo_ai
+            return True, echo_ai.test()
         if svc["key"] == "alpaca":
             import echo_broker
             a = echo_broker.account()

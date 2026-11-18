@@ -1,9 +1,9 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Office daily jobs built (content engine done except weekly YouTube stats)",
+  "checkpoint": "Claude brain built (echo_ai.py), PR opening",
   "next_actions": [
-    "Owner: /connect 1-3, 'my channels are about ...'",
-    "Optional: weekly YouTube views report (channel RSS blocked by consent page; try with CONSENT cookie)"
+    "Owner: /connect 5 then /brain claude, set /brain budget",
+    "Owner: /connect 1-3 for OpusClip/Shopify/Gmail"
   ],
-  "updated": "2026-11-04"
+  "updated": "2026-11-18"
 }

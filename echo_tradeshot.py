@@ -88,11 +88,11 @@ def plan_chart(symbol):
 
 def analyse_screenshot(image, caption="", look=None):
     """Returns (reply text, chart PNG bytes or None). Never raises."""
-    if not echo_photos.has_vision() and not ticker_from_caption(caption):
+    if not echo_photos.can_see() and not ticker_from_caption(caption):
         return ("To read chart screenshots I need the free photo brain on your PC. Send /getvision to download "
                 "it. Or put the ticker in the caption (e.g. 'NVDA') and I'll analyse that stock straight away."), None
     seen = {}
-    if echo_photos.has_vision():
+    if echo_photos.can_see():
         try:
             seen = read(image, caption, look)
         except Exception as exc:

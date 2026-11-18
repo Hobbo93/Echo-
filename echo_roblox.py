@@ -89,6 +89,13 @@ def _ask_ollama(text):
     prompt = ("Turn this Roblox map request into JSON with keys: type (one of " + ", ".join(TYPES) +
               "), theme (one of " + ", ".join(THEMES) + "), size (small, medium or large), "
               "stages (number or null), name (short map name). Request: " + text)
+    import echo_ai
+    claude = echo_ai.try_claude([{"role": "user", "content": prompt + "\nAnswer with ONLY the JSON object."}],
+                                "background", max_tokens=1000)
+    if claude:
+        m = re.search(r"\{.*\}", claude, re.S)
+        if m:
+            return json.loads(m.group(0))
     body = json.dumps({"model": echo_brain.model(), "stream": False, "format": "json",
                        "messages": [{"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(OLLAMA, body, {"Content-Type": "application/json"})

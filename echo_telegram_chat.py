@@ -46,6 +46,7 @@ import echo_finder
 import echo_connect
 import echo_office_jobs
 import echo_brain
+import echo_ai
 import echo_log
 import echo_backup
 import echo_health
@@ -102,17 +103,19 @@ def ask_echo(message, spoken=False):
     messages = [{"role": "system", "content": system}, *history,
                 {"role": "user", "content": message}]
     echo_brain.mark_active()
-    payload = {"model": echo_brain.model(), "messages": messages, "stream": False,
-               "keep_alive": echo_brain.KEEP_ALIVE}
-    req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
-                                 {"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            reply = json.load(r).get("message", {}).get("content", "No response received.")
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {echo_brain.model()}") from None
-    except urllib.error.URLError:
-        raise RuntimeError("Cannot reach Ollama. Make sure the Ollama app is running.") from None
+    reply = echo_ai.try_claude(messages, "main")  # Claude if it's switched on, else the local brain
+    if reply is None:
+        payload = {"model": echo_brain.model(), "messages": messages, "stream": False,
+                   "keep_alive": echo_brain.KEEP_ALIVE}
+        req = urllib.request.Request(OLLAMA, json.dumps(payload).encode(),
+                                     {"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                reply = json.load(r).get("message", {}).get("content", "No response received.")
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"Ollama error {exc.code}. Is the model pulled? Run: ollama pull {echo_brain.model()}") from None
+        except urllib.error.URLError:
+            raise RuntimeError("Cannot reach Ollama. Make sure the Ollama app is running.") from None
     reply = echo_growth.check_reply(reply)
     echo_growth.after_reply(message, reply)
     history.extend([{"role": "user", "content": message},
@@ -222,7 +225,7 @@ def handle_photo(msg):
                 pass
         send(CHAT_ID, reply)
         return
-    if not echo_photos.has_vision():
+    if not echo_photos.can_see():
         send(CHAT_ID, "Saved your photo as " + path.name + ".\n\n" + echo_photos.need_vision_message())
         return
     telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
@@ -469,6 +472,12 @@ def handle_command(text):
         return True
     if lower.startswith("/brain") or re.search(r"\b(upgrade|improve) (your|echo'?s?) brain\b|\b(bigger|smarter) (ai )?model\b", lower):
         cmd = text if lower.startswith("/brain") else ("/brain upgrade" if "upgrade" in lower else "/brain")
+        claude = echo_ai.handle(cmd)  # /brain claude · /brain local · /brain budget N
+        if claude:
+            send(CHAT_ID, claude)
+            return True
+        if cmd.strip().lower() == "/brain":
+            send(CHAT_ID, echo_ai.describe())
         telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
         threading.Thread(target=lambda: send(CHAT_ID, _safe_text(echo_brain.handle, cmd, lambda m: send(CHAT_ID, m))),
                          daemon=True).start()
@@ -754,7 +763,7 @@ def handle_command(text):
              "• /ideas - today's video ideas · /store - store report · /inbox - new customer emails · send reply 3\n"
              "• /connect - link your accounts (OpusClip→YouTube/TikTok/Instagram, Shopify, Gmail, trading) from your phone\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
-             "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"
+             "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"             "• /brain claude - think with Claude (paid, capped: /brain budget 20) · /brain local - back to free\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
              "• /new - start a fresh chat")
@@ -786,7 +795,7 @@ def handle_message(msg):
             return
         # A follow-up question about the photo you just sent
         if text and last_photo and time.time() - last_photo["time"] < 180 \
-                and echo_photos.has_vision() and not text.startswith("/"):
+                and echo_photos.can_see() and not text.startswith("/"):
             telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "typing"})
             send(CHAT_ID, echo_photos.look([last_photo["data"]], text, history[-6:]))
             return
