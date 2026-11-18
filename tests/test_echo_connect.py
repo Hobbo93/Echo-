@@ -60,6 +60,22 @@ class ConnectTest(unittest.TestCase):
         self.assertIn("🔴", reply)
         self.assertIn("rejected", reply)
 
+    def test_claude_key_switches_brains_on_with_limit(self):
+        import echo_ai
+        saved = (echo_ai.SETTINGS, echo_ai.CONFIG, echo_ai.USAGE)
+        echo_ai.SETTINGS, echo_ai.CONFIG, echo_ai.USAGE = (Path(self.tmp.name) / "ai.json", c.CONFIG,
+                                                           Path(self.tmp.name) / "usage.json")
+        try:
+            c.handle("/connect 5")
+            reply, delete = c.handle("sk-ant-" + "x" * 30)
+            self.assertTrue(delete)
+            self.assertEqual(echo_ai.settings()["provider"], "claude")
+            self.assertEqual(echo_ai.settings()["budget"], 20.0)
+            self.assertIn("$20.00 a month", reply)
+            self.assertTrue(echo_ai.enabled())
+        finally:
+            echo_ai.SETTINGS, echo_ai.CONFIG, echo_ai.USAGE = saved
+
     def test_cancel_and_not_mine(self):
         c.handle("/connect 1")
         self.assertIn("Stopped", c.handle("cancel")[0])

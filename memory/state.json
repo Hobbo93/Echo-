@@ -1,9 +1,8 @@
 {
   "objective": "Owner installs updates and connects keys; next upgrades only if free",
-  "checkpoint": "Claude brain built (echo_ai.py), PR opening",
+  "checkpoint": "Claude brain merged; /connect 5 now auto-enables both brains at $20/month",
   "next_actions": [
-    "Owner: /connect 5 then /brain claude, set /brain budget",
-    "Owner: /connect 1-3 for OpusClip/Shopify/Gmail"
+    "Owner: console.anthropic.com credit + key, then /connect 5"
   ],
   "updated": "2026-11-18"
 }
