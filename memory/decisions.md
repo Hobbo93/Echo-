@@ -16,3 +16,5 @@ Format: date — decision — why.
 - 2026-11-04 — Keys may be pasted to Echo's own Telegram bot via /connect (message deleted at once, saved only on the PC) because the owner can't use connect_echo.bat from the phone; connect_echo.bat stays the most private option
 - 2026-11-18 — Owner explicitly asked for Claude as Echo's brain (2026-11-18), overriding 'everything free' for this one feature: kept opt-in (/brain claude), with a monthly US$ cap and automatic fallback to the free local brain
 - 2026-11-18 Claude main brain defaults to Sonnet 5.5 (not Opus) - owner chose it so the US$20/month lasts the whole month; /brain claude opus switches up.
+- 2026-11-19 Phone files: echo_files.py - phone->PC saves videos/files/PDFs to ~/Echo_inbox (/files, /get N); PC->phone sends anything dropped in ~/Echo_send_to_phone. Folders outside repo so nothing personal reaches GitHub.
+- 2026-11-19 Office.html modern redesign (Inter font, glass panels, chat bubbles, status pill); markup/IDs unchanged so all JS works. set_claude_key.py = PC alternative to /connect 5 (hidden key prompt, saves anthropic_api_key, switches provider to claude).

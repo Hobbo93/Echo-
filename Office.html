@@ -3,138 +3,267 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ECHO AI Headquarters</title>
+<title>Echo HQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+:root{
+--bg:#070b16;
+--bg-2:#0c1222;
+--panel:rgba(17,24,43,.72);
+--panel-solid:#111a2e;
+--line:rgba(148,163,200,.14);
+--line-strong:rgba(148,163,200,.28);
+--text:#e8edf7;
+--muted:#8b97b0;
+--accent:#38bdf8;
+--accent-2:#818cf8;
+--good:#34d399;
+--bad:#f87171;
+--field:rgba(8,13,27,.7);
+--bubble-them:#18223a;
+--radius:14px;
+--shadow:0 10px 40px rgba(0,0,0,.35);
+}
 *{box-sizing:border-box}
+html,body{height:100%}
 body{
 margin:0;
-background:#080d1c;
-color:white;
-font-family:Arial,sans-serif;
+background:
+radial-gradient(1200px 600px at 10% -10%,rgba(56,189,248,.10),transparent 60%),
+radial-gradient(900px 500px at 110% 10%,rgba(129,140,248,.12),transparent 60%),
+var(--bg);
+color:var(--text);
+font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+font-size:14px;
+line-height:1.45;
+-webkit-font-smoothing:antialiased;
 }
+
+/* ---------- Top bar ---------- */
 header{
-padding:15px;
-background:#101a32;
+height:60px;
+padding:0 20px;
 display:flex;
 justify-content:space-between;
 align-items:center;
+border-bottom:1px solid var(--line);
+background:rgba(7,11,22,.6);
+backdrop-filter:blur(14px);
+-webkit-backdrop-filter:blur(14px);
+position:relative;
+z-index:5;
 }
-h1{
-margin:0;
-color:#65e8ff;
-font-size:21px;
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+width:34px;height:34px;border-radius:10px;
+display:grid;place-items:center;
+background:linear-gradient(135deg,var(--accent),var(--accent-2));
+box-shadow:0 0 24px rgba(56,189,248,.45);
+font-weight:700;color:#06101f;font-size:16px;
 }
+h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+h1 small{display:block;font-size:11.5px;font-weight:500;color:var(--muted);letter-spacing:0}
+#connection{
+display:inline-flex;align-items:center;gap:8px;
+padding:6px 12px;border-radius:999px;
+border:1px solid var(--line-strong);
+background:rgba(255,255,255,.03);
+font-size:12.5px;font-weight:500;color:var(--muted);
+}
+#connection:before{
+content:"";width:8px;height:8px;border-radius:50%;
+background:var(--muted);
+}
+#connection[data-state="on"]{color:var(--text)}
+#connection[data-state="on"]:before{background:var(--good);box-shadow:0 0 0 4px rgba(52,211,153,.18)}
+#connection[data-state="off"]{color:var(--bad)}
+#connection[data-state="off"]:before{background:var(--bad);box-shadow:0 0 0 4px rgba(248,113,113,.18)}
+
+/* ---------- Buttons & fields ---------- */
 button{
-background:#177ca0;
-color:white;
-border:0;
-border-radius:8px;
-padding:10px;
+font:inherit;font-size:13px;font-weight:500;
+background:rgba(255,255,255,.05);
+color:var(--text);
+border:1px solid var(--line-strong);
+border-radius:10px;
+padding:8px 12px;
 cursor:pointer;
 margin:3px;
+transition:background .15s,border-color .15s,transform .05s;
 }
-button:hover{background:#249ac4}
-#callButton{background:#1f9d55}
-#callButton.oncall{background:#c0392b}
+button:hover{background:rgba(255,255,255,.09);border-color:rgba(148,163,200,.45)}
+button:active{transform:translateY(1px)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{
+background:linear-gradient(135deg,var(--accent),var(--accent-2));
+border-color:transparent;color:#06101f;font-weight:600;
+}
+button.primary:hover{filter:brightness(1.08)}
+#callButton{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.45);color:#a7f3d0}
+#callButton.oncall{background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.55);color:#fecaca}
+#visionButton{background:rgba(129,140,248,.18)!important;border-color:rgba(129,140,248,.5)}
 input,textarea,select{
 width:100%;
-padding:10px;
+font:inherit;
+padding:10px 12px;
 margin:6px 0 12px;
-background:#18243e;
-color:white;
-border:1px solid #395171;
-border-radius:7px;
+background:var(--field);
+color:var(--text);
+border:1px solid var(--line-strong);
+border-radius:10px;
 }
-textarea{min-height:70px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{min-height:70px;resize:vertical}
+label{font-size:12px;font-weight:500;color:var(--muted)}
+
+/* ---------- Layout ---------- */
 .layout{
 display:grid;
-grid-template-columns:290px 1fr 290px;
+grid-template-columns:340px 1fr 300px;
+gap:12px;
+padding:12px;
 height:calc(100vh - 60px);
 }
 .panel{
-padding:15px;
-background:#10192e;
+padding:16px;
+background:var(--panel);
+border:1px solid var(--line);
+border-radius:var(--radius);
+box-shadow:var(--shadow);
+backdrop-filter:blur(14px);
+-webkit-backdrop-filter:blur(14px);
 overflow:auto;
 }
+.chatPanel{display:flex;flex-direction:column}
+h3{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.section-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+#talkingTo{
+display:inline-flex;align-items:center;gap:6px;
+margin:4px 0 2px;padding:4px 10px;border-radius:999px;
+background:rgba(56,189,248,.12);color:#7dd3fc;font-weight:600;font-size:12px;
+}
+
+/* ---------- 3D scene ---------- */
 #scene{
 position:relative;
 overflow:hidden;
-background:#101a32;
+background:var(--bg-2);
+border:1px solid var(--line);
+border-radius:var(--radius);
+box-shadow:var(--shadow);
 }
-canvas{
-width:100%;
-height:100%;
-display:block;
-touch-action:none;
-}
+canvas{width:100%;height:100%;display:block;touch-action:none}
 #bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.bubble{position:absolute;transform:translate(-50%,-100%);background:#fff;color:#13202f;border:2px solid #0ea5e9;border-radius:14px;
-padding:5px 9px;font-size:12px;max-width:190px;white-space:normal;box-shadow:0 3px 10px rgba(0,0,0,.18);pointer-events:auto;cursor:pointer}
-.banner{position:absolute;transform:translate(-50%,-50%);color:#fff;font-weight:bold;font-size:12px;padding:5px 11px;border-radius:9px;
-background:rgba(7,10,18,.82);pointer-events:auto;cursor:pointer;white-space:nowrap;letter-spacing:1px;border:2px solid #fff;text-shadow:0 0 6px rgba(255,255,255,.6)}
+.bubble{position:absolute;transform:translate(-50%,-100%);background:#fff;color:#0f172a;border:0;border-radius:12px;
+padding:6px 10px;font-size:12px;font-weight:500;max-width:190px;white-space:normal;box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:auto;cursor:pointer}
+.banner{position:absolute;transform:translate(-50%,-50%);color:#fff;font-weight:600;font-size:12px;padding:6px 12px;border-radius:999px;
+background:rgba(7,11,22,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:auto;cursor:pointer;white-space:nowrap;
+letter-spacing:.02em;border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .banner span{margin-right:5px}
-.banner:hover{transform:translate(-50%,-50%) scale(1.08)}
+.banner:hover{transform:translate(-50%,-50%) scale(1.06)}
 .bubble.far{font-size:9px;padding:3px 6px;max-width:120px}
-.bubble:after{content:"";position:absolute;left:50%;bottom:-8px;border:6px solid transparent;border-top-color:#fff;transform:translateX(-50%)}
-#captureBtns{position:absolute;bottom:42px;right:12px}
-#captureBtns button{background:#fff;font-size:16px;padding:8px 10px;box-shadow:0 3px 10px rgba(0,0,0,.2)}
-#backButton{position:absolute;top:12px;left:12px;display:none;background:#fff;color:#0c2a3d;font-weight:bold;box-shadow:0 3px 10px rgba(0,0,0,.2)}
-#sceneHint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.88);color:#0c2a3d;
-font-size:12px;padding:6px 12px;border-radius:20px;pointer-events:none;white-space:nowrap}
-#infoPanel{position:absolute;top:12px;right:12px;width:min(330px,80%);max-height:calc(100% - 24px);overflow:auto;display:none;
-background:rgba(255,255,255,.97);color:#13202f;border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
-#infoPanel .small{color:#5b6878}
-.ipTitle{font-size:17px;font-weight:bold;border-left:5px solid #0ea5e9;padding-left:8px;margin-bottom:2px}
-.ipHead{font-weight:bold;margin:10px 0 3px;color:#0c2a3d}
+.bubble:after{content:"";position:absolute;left:50%;bottom:-7px;border:6px solid transparent;border-top-color:#fff;border-bottom:0;transform:translateX(-50%)}
+#captureBtns{position:absolute;bottom:46px;right:14px;display:flex;gap:6px}
+#captureBtns button,#backButton{
+background:rgba(7,11,22,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+border:1px solid rgba(255,255,255,.22);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.3);margin:0}
+#captureBtns button{font-size:16px;padding:8px 11px}
+#backButton{position:absolute;top:14px;left:14px;display:none;font-weight:600}
+#sceneHint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(7,11,22,.72);color:#cbd5e1;
+backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);
+font-size:12px;padding:6px 14px;border-radius:999px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+#infoPanel{position:absolute;top:14px;right:14px;width:min(340px,82%);max-height:calc(100% - 28px);overflow:auto;display:none;
+background:rgba(255,255,255,.97);color:#0f172a;border-radius:16px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.4);font-size:13px}
+#infoPanel .small{color:#64748b}
+#infoPanel button{background:#f1f5f9;border-color:#e2e8f0;color:#0f172a}
+#infoPanel button:hover{background:#e2e8f0}
+.ipTitle{font-size:17px;font-weight:700;border-left:4px solid var(--accent);padding-left:9px;margin-bottom:2px}
+.ipHead{font-weight:600;margin:12px 0 4px;color:#0f172a}
 #infoPanel ul{margin:0;padding-left:18px}
-.ipChat{background:#f3f6f9;border-radius:8px;padding:7px;max-height:150px;overflow:auto;line-height:1.45}
-.ipText{white-space:normal;line-height:1.45;margin-top:6px}
-.chip{display:inline-block;background:#eef4f8;border-radius:12px;padding:3px 8px;margin:2px;cursor:pointer;font-size:12px}
-.chip:hover{background:#d7eaf5}
+.ipChat{background:#f1f5f9;border-radius:10px;padding:8px;max-height:150px;overflow:auto;line-height:1.45}
+.ipText{white-space:normal;line-height:1.5;margin-top:6px}
+.chip{display:inline-block;background:#eef2f7;border-radius:999px;padding:4px 10px;margin:2px;cursor:pointer;font-size:12px}
+.chip:hover{background:#dbeafe}
 .ipBtns{margin-top:10px}
-.ipBtns button{font-size:12px;padding:7px 9px}
-.label{
-position:absolute;
-background:#10192eee;
-border:1px solid #55dfff;
-border-radius:8px;
-padding:4px 7px;
-font-size:11px;
-cursor:pointer;
-transform:translate(-50%,-50%);
-white-space:nowrap;
-}
+.ipBtns button{font-size:12px;padding:7px 10px}
+.label{position:absolute;background:rgba(7,11,22,.8);border:1px solid rgba(56,189,248,.6);border-radius:8px;
+padding:4px 8px;font-size:11px;cursor:pointer;transform:translate(-50%,-50%);white-space:nowrap}
+
+/* ---------- Chat ---------- */
 #messages{
-height:40vh;
+flex:1;
+min-height:240px;
 overflow:auto;
-border:1px solid #34435d;
-padding:10px;
-margin-bottom:10px;
-}
-.message{
-padding:9px;
-margin:7px 0;
-border-radius:8px;
-background:#26344e;
-white-space:pre-wrap;
-overflow-wrap:anywhere;
-}
-.user{background:#125b76}
-.message img{max-width:100%;max-height:160px;border-radius:6px;display:block;margin-top:6px}
-#photoPreview{display:flex;gap:6px;flex-wrap:wrap}
-#photoPreview img{height:56px;border-radius:6px;border:1px solid #55dfff;cursor:pointer}
-.small{
-font-size:12px;
-color:#aabbd2;
-}
-@media(max-width:850px){
-.layout{
+padding:12px 4px;
+margin:10px 0;
 display:flex;
 flex-direction:column;
-height:auto;
+gap:8px;
+border-top:1px solid var(--line);
+border-bottom:1px solid var(--line);
 }
-#scene{height:420px}
+.message{
+max-width:88%;
+padding:9px 13px;
+border-radius:16px 16px 16px 4px;
+background:var(--bubble-them);
+border:1px solid var(--line);
+white-space:pre-wrap;
+overflow-wrap:anywhere;
+align-self:flex-start;
+animation:pop .18s ease-out;
+}
+.message.user{
+align-self:flex-end;
+border-radius:16px 16px 4px 16px;
+background:linear-gradient(135deg,#0ea5e9,#6366f1);
+border-color:transparent;
+color:#fff;
+}
+@keyframes pop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.message img{max-width:100%;max-height:160px;border-radius:10px;display:block;margin-top:6px}
+#photoPreview{display:flex;gap:6px;flex-wrap:wrap}
+#photoPreview img{height:56px;border-radius:10px;border:1px solid var(--accent);cursor:pointer}
+.composer textarea{margin:0 0 8px;min-height:64px}
+.actions{display:flex;flex-wrap:wrap;margin:0 -3px}
+.small{font-size:12px;color:var(--muted)}
+#callStatus:empty{display:none}
+
+/* Collapsible settings */
+details{border-top:1px solid var(--line);margin-top:14px;padding-top:10px}
+summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);list-style:none;display:flex;align-items:center;gap:6px}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"›";display:inline-block;transition:transform .15s;font-size:15px}
+details[open] summary:before{transform:rotate(90deg)}
+
+/* Team list */
+#employeeStatus{display:flex;flex-direction:column;gap:6px}
+#employeeStatus p{
+margin:0;padding:9px 11px;border-radius:10px;
+background:rgba(255,255,255,.03);border:1px solid var(--line);
+color:var(--text);font-size:12.5px;
+}
+
+/* Scrollbars */
+*{scrollbar-width:thin;scrollbar-color:rgba(148,163,200,.3) transparent}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-thumb{background:rgba(148,163,200,.25);border-radius:8px}
+
+@media(max-width:1100px){
+.layout{grid-template-columns:320px 1fr}
+.teamPanel{grid-column:1 / -1}
+.layout{height:auto}
+#scene{min-height:70vh}
+}
+@media(max-width:850px){
+header{padding:0 16px}
+.layout{display:flex;flex-direction:column;height:auto;padding:10px;gap:10px}
+#scene{height:420px;min-height:0;order:-1}
+#messages{min-height:260px;max-height:50vh}
+#sceneHint{display:none}
 }
 </style>
 </head>
@@ -142,70 +271,51 @@ height:auto;
 <body>
 
 <header>
-<h1>🧠 ECHO HEADQUARTERS</h1>
-<span id="connection">Office Ready</span>
+<div class="brand">
+<div class="logo">E</div>
+<h1>Echo HQ<small>Your AI company</small></h1>
+</div>
+<span id="connection">Connecting…</span>
 </header>
 
 <div class="layout">
 
-<section class="panel">
-<h3>Echo Chat</h3>
-<p id="talkingTo" class="small" style="color:#65e8ff;font-weight:bold">Talking to: Echo</p>
+<section class="panel chatPanel">
+<h3>Chat</h3>
+<p id="talkingTo">Talking to: Echo</p>
 <p class="small">Click any office or person in the building to talk to them.</p>
 
 <div id="messages"></div>
 
+<div class="composer">
 <textarea
 id="prompt"
-placeholder="Give an employee a task">
-</textarea>
+placeholder="Give an employee a task…"></textarea>
 
 <div id="photoPreview"></div>
 <input type="file" id="photoInput" accept="image/*" multiple hidden>
 
-<button onclick="sendMessage()">
-Send Message
-</button>
-
-<button onclick="document.getElementById('photoInput').click()" title="Attach a photo">
-📷 Photo
-</button>
-
-<button id="visionButton" onclick="installVision()" style="display:none;background:#8a5cd6">
-⬇ Download photo brain
-</button>
-
-<button id="callButton" onclick="toggleCall()">
-🎙️ Talk
-</button>
-
-<button id="voicesButton" onclick="toggleVoices()">
-🔊 Voices on
-</button>
-
-<button id="interruptButton" onclick="interruptEcho()" style="display:none">
-✋ Interrupt
-</button>
-
-<button onclick="ringMyPhone()">
-📱 Ring my phone
-</button>
+<div class="actions">
+<button class="primary" onclick="sendMessage()">Send</button>
+<button onclick="document.getElementById('photoInput').click()" title="Attach a photo">📷 Photo</button>
+<button id="visionButton" onclick="installVision()" style="display:none">⬇ Download photo brain</button>
+<button id="callButton" onclick="toggleCall()">🎙️ Talk</button>
+<button id="voicesButton" onclick="toggleVoices()">🔊 Voices on</button>
+<button id="interruptButton" onclick="interruptEcho()" style="display:none">✋ Interrupt</button>
+<button onclick="ringMyPhone()">📱 Ring my phone</button>
+</div>
 
 <p id="callStatus" class="small"></p>
+</div>
 
-<h3>Server Connection</h3>
-
+<details>
+<summary>Server connection</summary>
 <input
 id="server"
 value="http://127.0.0.1:5000">
-
-<button onclick="testConnection()">
-Test Connection
-</button>
-
-<p class="small">
-Ollama connection requires the Python backend.
-</p>
+<button onclick="testConnection()">Test connection</button>
+<p class="small">Echo's AI runs through the Python server on this PC.</p>
+</details>
 </section>
 
 <main id="scene">
@@ -218,42 +328,39 @@ Ollama connection requires the Python backend.
 <div id="captureBtns"><button onclick="officeCapture('photo',zoomedKey())" title="Send a photo of the office to your phone">📸</button><button onclick="officeCapture('video',zoomedKey())" title="Send a video tour to your phone">🎥</button></div>
 </main>
 
-<section class="panel">
+<section class="panel teamPanel">
 
-<h3>AI Employee Manager</h3>
+<h3>Your team</h3>
+<p class="small">Everyone working in Echo HQ.</p>
+<div id="employeeStatus"></div>
 
-<label>Choose Room</label>
+<details>
+<summary>Edit an employee</summary>
+
+<label>Choose room</label>
 <select
 id="roomSelect"
 onchange="selectRoom(Number(this.value),true)">
 </select>
 
-<label>Employee Name</label>
+<label>Name</label>
 <input id="employeeName">
 
-<label>Employee Job</label>
+<label>Job</label>
 <input id="employeeRole">
 
-<label>AI Model</label>
+<label>AI model</label>
 <input id="employeeModel" value="llama3.2">
 
 <label>Instructions</label>
 <textarea id="employeeInstructions"></textarea>
 
-<button onclick="saveEmployee()">
-Save Employee
-</button>
-
-<button onclick="addRoom()">
-Add Room
-</button>
-
-<button onclick="removeRoom()">
-Remove Room
-</button>
-
-<h3>Employees</h3>
-<div id="employeeStatus"></div>
+<div class="actions">
+<button class="primary" onclick="saveEmployee()">Save employee</button>
+<button onclick="addRoom()">Add room</button>
+<button onclick="removeRoom()">Remove room</button>
+</div>
+</details>
 
 </section>
 </div>
@@ -1252,13 +1359,15 @@ signal:AbortSignal.timeout(5000)
 if(!response.ok)
 throw Error("Server returned "+response.status);
 
-$("connection").textContent="Server Connected";
+$("connection").textContent="Online";
+$("connection").dataset.state="on";
 
 addMessage("Connected to Echo's server.");
 
 }catch(error){
 
-$("connection").textContent="Server Offline";
+$("connection").textContent="Offline";
+$("connection").dataset.state="off";
 
 addMessage(
 "Server unavailable: "+error.message

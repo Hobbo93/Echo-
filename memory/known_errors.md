@@ -10,3 +10,4 @@ Format: symptom → cause → fix (date).
 - 2026-11-04 OpusClip social-posting endpoints need the BARE clip id (after the dot in exportable-clips id); project done when GET /clip-projects/{id} stage == COMPLETE (STALLED = failed); API monthly cap returns 403 API_MONTHLY_CAP_REACHED
 - 2026-11-04 echo_autostart.bat had a hard-coded test path (Downloads\Echo_fresh_test) and was meant to be copied into Startup → Echo started the wrong copy or nothing → echo_start.install_autostart() writes Startup\Echo.bat from the real folder
 - 2026-11-04 Instagram/TikTok/Facebook have no free search without login → owner shares links into Telegram; YouTube search works by parsing ytInitialData from the results page (may break if YouTube changes its page)
+- 2026-11-19 Launching echo_start.py from a Claude Code tool kills Echo when the tool call ends -> child windows share the tool's job -> start it with PowerShell Start-Process start_echo.bat instead.

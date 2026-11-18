@@ -47,6 +47,7 @@ import echo_connect
 import echo_office_jobs
 import echo_brain
 import echo_ai
+import echo_files
 import echo_log
 import echo_backup
 import echo_health
@@ -185,6 +186,47 @@ def download(file_id, limit=20 * 1024 * 1024):
     if len(data) > limit:
         raise RuntimeError("That file is too large.")
     return data
+
+
+def handle_file(msg, found):
+    """You sent a video, file, PDF or audio: save it on the PC (Echo_inbox)."""
+    file_id, name, size, _kind = found
+    if size > echo_files.RECEIVE_LIMIT:
+        send(CHAT_ID, f"That file is {size / 1024 / 1024:.0f} MB. Telegram only lets Echo download files up to "
+                      "20 MB. Send a shorter clip, or copy it to the PC another way.")
+        return
+    telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_document"})
+    path = echo_files.save_incoming(download(file_id, echo_files.RECEIVE_LIMIT), name)
+    note = (msg.get("caption") or "").strip()
+    send(CHAT_ID, f"📥 Saved on the PC: {path.name}\nFolder: {echo_files.INBOX}"
+                  + (f"\nYour note: {note}" if note else "")
+                  + "\n/files lists everything you've sent me.")
+
+
+def send_file(chat_id, path, caption=""):
+    """Send any file from the PC to your phone, in the best form (photo, video, audio or file)."""
+    if path.stat().st_size > echo_files.SEND_LIMIT:
+        send(chat_id, f"{path.name} is {path.stat().st_size / 1024 / 1024:.0f} MB. Telegram only lets Echo send "
+                      "files up to 50 MB, so I left it on the PC.")
+        return False
+    method, field, kind = echo_files.upload_method(path)
+    return _upload(method, field, chat_id, path, kind, caption)
+
+
+def watch_outbox():
+    """Background: send anything dropped into the Echo_send_to_phone folder, every few seconds."""
+    while True:
+        try:
+            for path in echo_files.ready_to_send():
+                if path.stat().st_size > echo_files.SEND_LIMIT:
+                    send(CHAT_ID, f"{path.name} is too big for Telegram (over 50 MB), so I left it on the PC.")
+                    echo_files.mark_sent(path)
+                    continue
+                send_file(CHAT_ID, path, "📲 From your PC: " + path.name)
+                echo_files.mark_sent(path)
+        except Exception as exc:
+            echo_log.error("outbox", exc)
+        time.sleep(5)
 
 
 def send_photo(chat_id, path, caption=""):
@@ -763,6 +805,8 @@ def handle_command(text):
              "• /ideas - today's video ideas · /store - store report · /inbox - new customer emails · send reply 3\n"
              "• /connect - link your accounts (OpusClip→YouTube/TikTok/Instagram, Shopify, Gmail, trading) from your phone\n"
              "• /health - full check-up · /errors - anything that went wrong · /backup - back up now\n"
+             "• Send me any video, file or PDF and I'll save it on the PC · /files lists them · /get 3 sends one back\n"
+             "• Drop a file in Echo_send_to_phone on the PC and I'll send it here\n"
              "• /brain - check the PC and get a smarter free AI brain (/brain upgrade · /brain small)\n"             "• /brain claude - think with Claude (paid, capped: /brain budget 20) · /brain local - back to free\n"
              "• /research - what I'm researching · /research add TOPIC · /learned - what I've learned\n"
              "• that's not true / /feedback ... - correct me and I'll learn from it\n"
@@ -790,6 +834,21 @@ def handle_message(msg):
     try:
         if is_photo:
             handle_photo(msg)
+            return
+        found = echo_files.incoming(msg)
+        if found:
+            handle_file(msg, found)
+            return
+        if text.lower().startswith("/files"):
+            send(CHAT_ID, echo_files.list_text())
+            return
+        if re.match(r"^/get\s+\d+\s*$", text, re.I):
+            path = echo_files.pick(int(text.split()[1]))
+            if path:
+                telegram("sendChatAction", {"chat_id": CHAT_ID, "action": "upload_document"})
+                send_file(CHAT_ID, path, path.name)
+            else:
+                send(CHAT_ID, "I don't have a file with that number. /files shows the list.")
             return
         if text and handle_command(text):
             return
@@ -900,6 +959,9 @@ def main():
         catch_up(updates)
     except Exception as exc:
         echo_log.error("catch_up", exc)
+    echo_files.ensure_folders()
+    threading.Thread(target=watch_outbox, daemon=True).start()
+    print(f"Sending anything you drop in {echo_files.OUTBOX} to your phone.", flush=True)
     while True:
         try:
             echo_business.heartbeat("telegram")
